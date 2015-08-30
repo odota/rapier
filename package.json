@@ -1,6 +1,6 @@
 {
   "name": "rapier",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "A JavaScript Dota 2 (Source 2) replay parsing library.",
   "main": "Parser.js",
   "directories": {
