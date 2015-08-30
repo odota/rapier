@@ -1,13 +1,13 @@
 # rapier
-A JavaScript Dota 2 (Source 2) replay parser
+A JavaScript Dota 2 (Source 2) replay parsing library
 
-Rapier is a Dota 2 replay parser supporting Source 2 replays written in JavaScript.
+Rapier is a Dota 2 replay parsing library supporting Source 2 replays written in JavaScript.
 
 It will throw (exceptions) if incorrectly used. :)
 
 Why JavaScript?
-* Potential for in-browser parsing
-* No existing parser yet
+* Potential for in-browser parsing (isomorphic)
+* No other JS replay parsing library
 * Makes the YASP stack 100% JavaScript
 
 API
