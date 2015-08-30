@@ -5,7 +5,6 @@ var ProtoBuf = require('protobufjs');
 //use pure JS snappy if in browser
 var snappy = typeof window === "undefined" ? require('snappy') : require('./snappy');
 var BitStream = require('./BitStream');
-var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var async = require('async');
 var stream = require('stream');
@@ -74,7 +73,7 @@ var Parser = function(input) {
     /**
      * Internal listeners to automatically process certain packets.
      * We abstract this away from the user so they don't need to worry about it.
-     * For optimal speed we could allow the user to disable these.
+     * For optimal speed we could allow the user to disable the ones they don't need
      **/
     p.on("CDemoStop", function(data) {
         //don't stop on CDemoStop since some replays have CDemoGameInfo after it
@@ -92,7 +91,7 @@ var Parser = function(input) {
     //Therefore we listen for create/update events and modify the table as needed.
     p.on("CSVCMsg_CreateStringTable", createStringTable);
     p.on("CSVCMsg_UpdateStringTable", updateStringTable);
-    //emitted once, this packet sets up the information we need to read gameevents
+    //this packet sets up our game event descriptors
     p.on("CMsgSource1LegacyGameEventList", function(data) {
         //console.error(data);
         var gameEventDescriptors = p.game_event_descriptors;

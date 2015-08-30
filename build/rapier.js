@@ -154,7 +154,6 @@ var ProtoBuf = require('protobufjs');
 //use pure JS snappy if in browser
 var snappy = typeof window === "undefined" ? require('snappy') : require('./snappy');
 var BitStream = require('./BitStream');
-var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var async = require('async');
 var stream = require('stream');
@@ -223,7 +222,7 @@ var Parser = function(input) {
     /**
      * Internal listeners to automatically process certain packets.
      * We abstract this away from the user so they don't need to worry about it.
-     * For optimal speed we could allow the user to disable these.
+     * For optimal speed we could allow the user to disable the ones they don't need
      **/
     p.on("CDemoStop", function(data) {
         //don't stop on CDemoStop since some replays have CDemoGameInfo after it
@@ -241,7 +240,7 @@ var Parser = function(input) {
     //Therefore we listen for create/update events and modify the table as needed.
     p.on("CSVCMsg_CreateStringTable", createStringTable);
     p.on("CSVCMsg_UpdateStringTable", updateStringTable);
-    //emitted once, this packet sets up the information we need to read gameevents
+    //this packet sets up our game event descriptors
     p.on("CMsgSource1LegacyGameEventList", function(data) {
         //console.error(data);
         var gameEventDescriptors = p.game_event_descriptors;
@@ -653,7 +652,7 @@ var Parser = function(input) {
 global.Parser = Parser;
 module.exports = Parser;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"./BitStream":1,"./build/protos.json":3,"./build/types.json":4,"./snappy":40,"async":5,"buffer":31,"events":9,"protobufjs":37,"snappy":39,"stream":27,"util":30}],3:[function(require,module,exports){
+},{"./BitStream":1,"./build/protos.json":3,"./build/types.json":4,"./snappy":40,"async":5,"buffer":31,"events":9,"protobufjs":37,"snappy":39,"stream":27}],3:[function(require,module,exports){
 module.exports={
     "package": null,
     "options": {
@@ -70014,7 +70013,6 @@ exports.uncompressSync = function (compressed, opts) {
  **/
 var ByteBuffer = require('bytebuffer');
 module.exports = {
-    //TODO optimize speed by using native buffer or node binding?
     uncompressSync: function(buf) {
         var input = ByteBuffer.wrap(buf);
         var size = input.readVarint32();
@@ -70066,55 +70064,4 @@ module.exports = {
         return output.toBuffer();
     }
 };
-/*
-//attempt to use native node buffer
-function uncompressSync(buf) {
-    var readOffset = 0;
-    var writeOffset = 0;
-    //TODO implement reading of varint from native buffer
-    var size = buf.readVarint32();
-    var output = new Buffer(size);
-    var copy = function(output, length, offset) {
-        var ptr = writeOffset - offset;
-        for (var i = 0; i < length; ++i) {
-            output.writeUInt8LE(output.readUInt8(ptr + i));
-        }
-    };
-    while (readOffset<size) {
-        var tag = buf.readUint8();
-        switch (tag & 3) {
-            case 0:
-                var length = (tag >> 2) + 1;
-                if (length >= 61) {
-                    var bytes = length - 60;
-                    length = 0;
-                    for (var i = 0; i < bytes; ++i) {
-                        length |= buf.readUInt8() << (8 * i);
-                    }
-                    length++;
-                }
-                for (var i = 0; i < length; ++i) {
-                    output.writeUInt8LE(buf.readUInt8);
-                }
-                break;
-            case 1:
-                var length = ((tag >> 2) & 7) + 4;
-                var readOffset = ((tag >> 5) << 8) | buf.readUInt8();
-                copy(output, length, readOffset);
-                break;
-            case 2:
-                var length = (tag >> 2) + 1;
-                var readOffset = buf.readUInt16LE();
-                copy(output, length, readOffset);
-                break;
-            case 3:
-                var length = (tag >> 2) + 1;
-                var readOffset = buf.readUInt32LE();
-                copy(output, length, readOffset);
-                break;
-        };
-    }
-    return output;
-};
-*/
 },{"bytebuffer":35}]},{},[2]);

@@ -14,13 +14,11 @@
     "snappy": "^4.0.0"
   },
   "devDependencies": {
-    "json-loader": "^0.5.2",
-    "webpack": "^1.12.0"
+    "browserify": "^11.0.1",
+    "json-loader": "^0.5.2"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "webpack": "webpack",
-    "watch": "webpack --watch",
     "browserify": "browserify ./Parser.js > ./build/rapier.js",
     "build": "bash update_proto.sh && pbjs ./proto/* > ./build/protos.json && node generateTypes.js > ./build/types.json"
   },
