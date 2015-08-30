@@ -38,7 +38,3 @@ Usage
 ----
 * Node.js: `npm install rapier`, then `var Parser = require('rapier')`
 * Browser: `<script src="./build/rapier.js"></script>` (you can grab the file and host it anywhere)
-
-TODO:
-- [ ] entities
-- [ ] npm release
