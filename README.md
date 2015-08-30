@@ -5,7 +5,7 @@ It will throw (exceptions) if incorrectly used. :)
 
 Why JavaScript?
 ----
-* Potential for in-browser parsing (isomorphic design)
+* Can be used for both server-side and in-browser parsing (isomorphic design)
 * No JS replay parsing library yet
 * Makes the YASP stack 100% JavaScript
 
