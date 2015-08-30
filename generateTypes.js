@@ -2,13 +2,8 @@
  * Generates a mapping of ids to protobuf message names
  **/
 var ProtoBuf = require('protobufjs');
-var path = require('path');
-var fs = require('fs');
 var builder = ProtoBuf.newBuilder();
-var files = fs.readdirSync("./proto");
-files.forEach(function(p) {
-    ProtoBuf.loadProtoFile(path.join(__dirname, "proto", p), builder);
-});
+ProtoBuf.loadJsonFile("./build/protos.json", builder);
 var dota = builder.build();
 //maintain a mapping for PacketTypes of id to string so we can emit events for different packet types.
 //we want to generate them automatically from the protobufs
