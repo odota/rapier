@@ -9,7 +9,6 @@ var game_event_descriptors = p.game_event_descriptors;
 var string_tables = p.string_tables;
 var entities = p.entities;
 //EVENTS
-//TODO list the general categories of events the user can listen for in readme
 //add an event listener with the name of the protobuf message in order to listen for it
 //full dem/packet listing is in build/types.json, or user can refer to original .proto files
 //WARNING: not every type listed is actually in the replay--it's automatically generated from enums in .protos!
