@@ -1,13 +1,11 @@
 # rapier
 A JavaScript Dota 2 (Source 2) replay parsing library.
 
-Rapier is a Dota 2 replay parsing library supporting Source 2 replays written in JavaScript.
-
-It will throw (exceptions) if incorrectly used. :)
+It throws (exceptions) if incorrectly used. :)
 
 Why JavaScript?
 ----
-* Potential for in-browser parsing (isomorphic design)
+* Can be used for both server-side and in-browser parsing (isomorphic design)
 * No JS replay parsing library yet
 * Makes the YASP stack 100% JavaScript
 
@@ -28,8 +26,8 @@ Event Overview
                 * Combat Log.  Combat log entries are a type of game event.  Some fields require the use of string tables (available to the user) to translate a number to a useful string ("npc_dota_hero_furion").
             * Packet Entities.
     * CDemoFileInfo.  This includes an end-of-game summary.
-    * CDemoSpawnGroups.
-    * CDemoSaveGames.
+    * CDemoSpawnGroup.
+    * CDemoSaveGame.
 
 Usage
 ----
