@@ -1,7 +1,7 @@
 # rapier
 A JavaScript Dota 2 (Source 2) replay parsing library.
 
-It will throw (exceptions) if incorrectly used. :)
+It throws (exceptions) if incorrectly used. :)
 
 Why JavaScript?
 ----
@@ -26,8 +26,8 @@ Event Overview
                 * Combat Log.  Combat log entries are a type of game event.  Some fields require the use of string tables (available to the user) to translate a number to a useful string ("npc_dota_hero_furion").
             * Packet Entities.
     * CDemoFileInfo.  This includes an end-of-game summary.
-    * CDemoSpawnGroups.
-    * CDemoSaveGames.
+    * CDemoSpawnGroup.
+    * CDemoSaveGame.
 
 Usage
 ----
