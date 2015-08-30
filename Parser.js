@@ -91,32 +91,32 @@ var Parser = function(input) {
     });
     //string tables may mutate over the lifetime of the replay.
     //Therefore we listen for create/update events and modify the table as needed.
-    p.on("CSVCMsg_CreateStringTable", createStringTable);
-    p.on("CSVCMsg_UpdateStringTable", updateStringTable);
+    p.on("CSVCMsg_CreateStringTable", readCreateStringTable);
+    p.on("CSVCMsg_UpdateStringTable", readUpdateStringTable);
     //this packet sets up our game event descriptors
-    p.on("CMsgSource1LegacyGameEventList", function(data) {
+    p.on("CMsgSource1LegacyGameEventList", function(msg) {
         //console.error(data);
         var gameEventDescriptors = p.game_event_descriptors;
-        for (var i = 0; i < data.descriptors.length; i++) {
-            gameEventDescriptors[data.descriptors[i].eventid] = data.descriptors[i];
+        for (var i = 0; i < msg.descriptors.length; i++) {
+            gameEventDescriptors[msg.descriptors[i].eventid] = msg.descriptors[i];
         }
     });
     //contains some useful data for entity parsing
-    p.on("CSVCMsg_ServerInfo", function(data) {
-        p.classIdSize = Math.log(data.max_classes);
+    p.on("CSVCMsg_ServerInfo", function(msg) {
+        p.classIdSize = Math.log(msg.max_classes);
     });
     //TODO entities. huffman trees, property decoding?!  requires parsing CDemoClassInfo, and instancebaseline string table?
-    p.on("CSVCMsg_PacketEntities", function(data) {
+    p.on("CSVCMsg_PacketEntities", function(msg) {
         //packet entities are contained in a buffer in this packet
         //we also need to readproperties
         //where do baselines fit in?  instancebaseline stringtable?
-        var buf = new Buffer(data.entity_data.toBuffer());
+        var buf = new Buffer(msg.entity_data.toBuffer());
         var bs = new BitStream(buf);
         var index = -1;
         var error = "incomplete";
         return;
         //read as many entries as the message says to
-        for (var i = 0; i < data.updated_entries; i++) {
+        for (var i = 0; i < msg.updated_entries; i++) {
             // Read the index delta from the buffer.
             var delta = bs.readUBitVar();
             index += delta + 1;
@@ -193,6 +193,7 @@ var Parser = function(input) {
     return p;
     /**
      * Reads the next DEM message from the replay (outer message)
+     * Accepts a callback since we may not have the entire message yet if streaming
      **/
     function readDemoMessage(cb) {
         async.series({
@@ -365,7 +366,7 @@ var Parser = function(input) {
         return;
     }
 
-    function createStringTable(data) {
+    function readCreateStringTable(data) {
         //create a stringtable
         //console.error(data);
         //extract the native buffer from the string_data ByteBuffer, with the offset removed
@@ -394,7 +395,7 @@ var Parser = function(input) {
         p.string_tables.tables.push(data);
     }
 
-    function updateStringTable(data) {
+    function readUpdateStringTable(data) {
         //update a string table
         //retrieve table by id
         var table = p.string_tables.tables[data.table_id];
