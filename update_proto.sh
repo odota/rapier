@@ -33,5 +33,3 @@ wget https://raw.githubusercontent.com/SteamDatabase/GameTracking/master/Protobu
 wget https://raw.githubusercontent.com/SteamDatabase/GameTracking/master/Protobufs/dota_s2/toolevents.proto
 wget https://raw.githubusercontent.com/SteamDatabase/GameTracking/master/Protobufs/dota_s2/usermessages.proto
 popd
-
-node generateTypes.js

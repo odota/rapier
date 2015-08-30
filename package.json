@@ -21,7 +21,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "browserify": "browserify ./Parser.js | uglifyjs > ./build/rapier.min.js",
-    "watchify": "watchify ./Parser.js ./build/rapier.js",
+    "watchify": "watchify ./Parser.js -o ./build/rapier.js",
     "update": "bash update_proto.sh",
     "pbjs": "pbjs ./proto/* > ./build/protos.json",
     "generateTypes": "node generateTypes.js > ./build/types.json",
