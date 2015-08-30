@@ -17,23 +17,18 @@ var entities = p.entities;
 p.on("CDemoFileInfo", function(data) {
     console.log(data);
 });
-
 //all chat
 p.on("CUserMessageSayText2", function(data) {
-    console.log(data);
+    //console.log(data);
 });
 //map pings
 p.on("CDOTAUserMsg_LocationPing", function(data) {
     //console.log(data);
 });
-//user actions
-p.on("CDOTAUserMsg_SpectatorPlayerUnitOrders", function(data) {
-    //console.log(data);
-});
 //objectives
 p.on("CDOTAUserMsg_ChatEvent", function(data) {
     //look up the type with DOTA_CHAT_MESSAGE
-    data.type = types.DOTA_CHAT_MESSAGE[data.type];
+    data.name = types.DOTA_CHAT_MESSAGE[data.type];
     //console.log(data);
 });
 //gameevents
@@ -43,9 +38,13 @@ p.on("CMsgSource1LegacyGameEvent", function(data) {
     //use the descriptor to read the gameevent data
     var gameEvent = {};
     data.keys.forEach(function(k, i) {
+        //each k is an object with an index and some values (one for each primitive, only one is populated)
+        //we want to get the name of the property and which value to read based on the descriptor for this eventid
+        //TODO cache the key/index for each eventid for speedup?
         var key = game_event_descriptors[data.eventid].keys[i].name;
         var index = game_event_descriptors[data.eventid].keys[i].type;
         //get the value of the key in object for that type
+        //TODO set the corresponding property name for each index as constants?
         var value = k[Object.keys(k)[index]];
         //populate the gameevent
         gameEvent[key] = value;
@@ -56,7 +55,7 @@ p.on("CMsgSource1LegacyGameEvent", function(data) {
     if (data.event_name === "dota_combatlog") {
         var cle = gameEvent;
         //look up the type with DOTA_COMBATLOG_TYPES
-        cle.type = types.DOTA_COMBATLOG_TYPES[cle.type];
+        cle.name = types.DOTA_COMBATLOG_TYPES[cle.type];
         //translate the entries using stringtable
         var combatLogNames = string_tables.byName["CombatLogNames"];
         //following fields might require a translation with stringtable, but whether they do is dependent on the combat log type
@@ -67,25 +66,43 @@ p.on("CMsgSource1LegacyGameEvent", function(data) {
         cle.targetsourcename = combatLogNames.string_data[cle.targetsourcename].key;
         //value needs a translation for certain types (for example, purchases), other times it's just an integer
         cle.valuename = combatLogNames[cle.value] ? combatLogNames[cle.value].key : null;
-        //console.log(cle);
+        if (cle.type === 14) {
+            //console.log(cle);
+        }
     }
-});
-//every tick
-p.on("CNETMsg_Tick", function(data){
-    //console.log(data);
-});
-//console data (includes some stun/slow data and damage breakdown by target/ability)
-p.on("CUserMessageTextMsg", function(data){
-    //console.log(data);
 });
 
+//every tick
+/*
+p.on("CNETMsg_Tick", function(data) {
+    //console.log(data);
+});
+*/
+//console data (includes some stun/slow data and damage breakdown by target/ability)
+/*
+p.on("CUserMessageTextMsg", function(data) {
+    //console.log(data);
+});
+*/
+//user actions
+/*
+p.on("CDOTAUserMsg_SpectatorPlayerUnitOrders", function(data) {
+    console.log(data);
+});
+*/
 //everything
-//p.on("*", function(data){console.log(data);})
+/*
+p.on("*", function(data) {
+    //console.log(data);
+})
+*/
 console.time('parse');
 //start takes a callback function that is called when the parse completes
+var count = 0;
 p.start(function(err) {
     if (err) {
-        console.log(err);
+        console.error(err);
     }
+    console.error(count);
     console.timeEnd('parse');
 });
