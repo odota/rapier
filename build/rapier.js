@@ -193,7 +193,10 @@ var Parser = function(input) {
         tables: [],
         byName: {}
     };
+    p.classInfo = {};
+    p.serializers = {};
     p.entities = {};
+    p.classIdSize = 0;
     p.start = function start(cb) {
         input.on('end', function() {
             stop = true;
@@ -237,20 +240,109 @@ var Parser = function(input) {
     });
     //string tables may mutate over the lifetime of the replay.
     //Therefore we listen for create/update events and modify the table as needed.
-    p.on("CSVCMsg_CreateStringTable", createStringTable);
-    p.on("CSVCMsg_UpdateStringTable", updateStringTable);
+    p.on("CSVCMsg_CreateStringTable", readCreateStringTable);
+    p.on("CSVCMsg_UpdateStringTable", readUpdateStringTable);
     //this packet sets up our game event descriptors
-    p.on("CMsgSource1LegacyGameEventList", function(data) {
+    p.on("CMsgSource1LegacyGameEventList", function(msg) {
         //console.error(data);
         var gameEventDescriptors = p.game_event_descriptors;
-        for (var i = 0; i < data.descriptors.length; i++) {
-            gameEventDescriptors[data.descriptors[i].eventid] = data.descriptors[i];
+        for (var i = 0; i < msg.descriptors.length; i++) {
+            gameEventDescriptors[msg.descriptors[i].eventid] = msg.descriptors[i];
         }
     });
+    //contains some useful data for entity parsing
+    p.on("CSVCMsg_ServerInfo", function(msg) {
+        p.classIdSize = Math.log(msg.max_classes);
+    });
     //TODO entities. huffman trees, property decoding?!  requires parsing CDemoClassInfo, and instancebaseline string table?
+    p.on("CSVCMsg_PacketEntities", function(msg) {
+        //packet entities are contained in a buffer in this packet
+        //we also need to readproperties
+        //where do baselines fit in?  instancebaseline stringtable?
+        var buf = new Buffer(msg.entity_data.toBuffer());
+        var bs = new BitStream(buf);
+        var index = -1;
+        var error = "incomplete";
+        return;
+        //read as many entries as the message says to
+        for (var i = 0; i < msg.updated_entries; i++) {
+            // Read the index delta from the buffer.
+            var delta = bs.readUBitVar();
+            index += delta + 1;
+            // Read the type of update based on two booleans.
+            // This appears to be backwards from source 1:
+            // true+true used to be "create", now appears to be false+true?
+            var updateType = "";
+            if (bs.readBoolean()) {
+                if (bs.readBoolean()) {
+                    //delete
+                    updateType = "D";
+                }
+                else {
+                    //XXX mystery type?
+                    updateType = "?";
+                }
+            }
+            else {
+                if (bs.readBoolean()) {
+                    //create
+                    updateType = "C";
+                }
+                else {
+                    //update
+                    updateType = "U";
+                }
+            }
+            // Proceed based on the update type
+            switch (updateType) {
+                case "C":
+                    // Create a new packetEntity.
+                    var classId = bs.readBits(p.server_info.classIdSize);
+                    // Get the associated class.
+                    //TODO we need to parse class info from CDemoClassInfo so we can map this id to a class
+                    var className = p.classInfo[classId];
+                    // Get the associated serializer
+                    //TODO we need to create serializers
+                    var flatTbl = p.serializers[className][0];
+                    var pe = {
+                        index: index,
+                        classId: classId,
+                        className: className,
+                        flatTbl: flatTbl,
+                        properties: {},
+                    };
+                    // Skip the 10 serial bits for now.
+                    //TODO implement a seek function for marginally more performance?
+                    bs.readBits(10);
+                    // Read properties and set them in the packetEntity
+                    pe.properties = readProperties(bs, pe.flatTbl);
+                    p.entities[index] = pe;
+                    break;
+                case "U":
+                    /*
+        			// Find the existing packetEntity
+        			pe, ok := p.packetEntities[index]
+        			if !ok {
+        				_debugf("unable to find packet entity %d for update", index)
+        			}
+        
+        			// Read properties and update the packetEntity
+        			for k, v := range ReadProperties(r, pe.flatTbl) {
+        				pe.properties[k] = v
+        			}
+        			*/
+                    break;
+                case "D":
+                    delete p.entities[index];
+                    break;
+            }
+        }
+        return;
+    });
     return p;
     /**
      * Reads the next DEM message from the replay (outer message)
+     * Accepts a callback since we may not have the entire message yet if streaming
      **/
     function readDemoMessage(cb) {
         async.series({
@@ -388,8 +480,42 @@ var Parser = function(input) {
             }
         }
     }
+    /**
+     * Given a bitstream and a flat table, return a mapping of properties
+     **/
+    function readProperties(bs, table) {
+        /*
+        // Return type
+    	result = make(map[string]interface{})
+    
+    	// Generate the huffman tree and fieldpath
+    	huf := newFieldpathHuffman()
+    	fieldPath := newFieldpath(ser, &huf)
+    
+    	// Get a list of the included fields
+    	fieldPath.walk(r)
+    
+    	// iterate all the fields and set their corresponding values
+    	for _, f := range fieldPath.fields {
+    		if f.Field.Serializer.Decode == nil {
+    			result[f.Name] = r.readVarUint32()
+    			_debugf("Reading %s - %s as varint %v", f.Name, f.Field.Type, result[f.Name])
+    			continue
+    		}
+    
+    		if f.Field.Serializer.DecodeContainer != nil {
+    			result[f.Name] = f.Field.Serializer.DecodeContainer(r, f.Field)
+    		} else {
+    			result[f.Name] = f.Field.Serializer.Decode(r, f.Field)
+    		}
+    
+    		_debugf("Decoded: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
+    	}
+    	*/
+        return;
+    }
 
-    function createStringTable(data) {
+    function readCreateStringTable(data) {
         //create a stringtable
         //console.error(data);
         //extract the native buffer from the string_data ByteBuffer, with the offset removed
@@ -418,7 +544,7 @@ var Parser = function(input) {
         p.string_tables.tables.push(data);
     }
 
-    function updateStringTable(data) {
+    function readUpdateStringTable(data) {
         //update a string table
         //retrieve table by id
         var table = p.string_tables.tables[data.table_id];
@@ -544,7 +670,7 @@ var Parser = function(input) {
                 }
                 else {
                     var valueSize = bs.readBits(14);
-                    //TODO mysterious 3 bits of data?
+                    //XXX mysterious 3 bits of data?
                     bs.readBits(3);
                     value = bs.readBuffer(valueSize * 8);
                 }
