@@ -2,8 +2,7 @@
  * Class creating a Source 2 Dota 2 replay parser
  **/
 var ProtoBuf = require('protobufjs');
-//use pure JS snappy if in browser
-var snappy = typeof window === "undefined" ? require('snappy') : require('./snappy');
+var snappy = require('./snappy');
 var BitStream = require('./BitStream');
 var EventEmitter = require('events').EventEmitter;
 var async = require('async');

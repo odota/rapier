@@ -10,8 +10,7 @@
     "async": "^1.4.2",
     "bytebuffer": "^4.0.0",
     "long": "^2.2.5",
-    "protobufjs": "4.0.0",
-    "snappy": "^4.0.0"
+    "protobufjs": "4.0.0"
   },
   "devDependencies": {
     "browserify": "^11.0.1",
@@ -29,6 +28,7 @@
   "keywords": [
     "dota",
     "dota2",
+    "dota 2",
     "replay",
     "parser",
     "parsing"
