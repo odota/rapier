@@ -2,32 +2,38 @@
  * Class creating a Source 2 Dota 2 replay parser
  **/
 var ProtoBuf = require('protobufjs');
-var path = require('path');
+//use pure JS snappy if in browser, node version otherwise
+var snappy = window ? require('./snappy') : require('snappy');
+//using feross/buffer to enable native node buffer API in browser
+var Buffer = window ? require('buffer/').Buffer : require('buffer');
 var BitStream = require('./BitStream');
-var snappy = require('snappy');
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
 var async = require('async');
-var fs = require('fs');
 var stream = require('stream');
-var types = require('./types.json');
+var types = require('./build/types.json');
+var protos = require('./build/protos.json');
 var packetTypes = types.packets;
 var demTypes = types.dems;
 //read the protobufs and build a dota object for reference
 var builder = ProtoBuf.newBuilder();
-var protos = fs.readdirSync(path.join(__dirname, "proto"));
-protos.forEach(function(p) {
-    ProtoBuf.loadProtoFile(path.join(__dirname, "proto", p), builder);
-});
+ProtoBuf.loadJson(protos, builder);
 var dota = builder.build();
 //CDemoSignonPacket is a special case and should be decoded with CDemoPacket since it doesn't have its own protobuf
 //it appears that things like the gameeventlist and createstringtables calls are here?
 dota["CDemoSignonPacket"] = dota["CDemoPacket"];
 //console.error(Object.keys(dota));
 var Parser = function(input) {
+    //if a JS ArrayBuffer, convert to native node buffer
+    if (input.byteLength) {
+        var buffer = new Buffer(input.byteLength);
+        var view = new Uint8Array(input);
+        for (var i = 0; i < buffer.length; i++) {
+            buffer[i] = view[i];
+        }
+        input = buffer;
+    }
     //wrap a passed buffer in a stream
-    //TODO this isn't tested yet
-    //TODO try webpacking the library
     if (Buffer.isBuffer(input)) {
         var bufferStream = new stream.PassThrough();
         bufferStream.end(input);
@@ -294,7 +300,7 @@ var Parser = function(input) {
                     }
                     //only update value if the new item has a nonempty value buffer
                     if (it.value.length) {
-                        //console.log("updating value length %s->%s at index %s on %s", string_data[it.index].value.length, it.value.length, it.index, table.name);
+                        //console.error("updating value length %s->%s at index %s on %s", string_data[it.index].value.length, it.value.length, it.index, table.name);
                         string_data[it.index].value = it.value;
                     }
                 }
@@ -362,8 +368,6 @@ var Parser = function(input) {
                         key = bs.readNullTerminatedString();
                     }
                     else {
-                        //console.log(keyHistory);
-                        //console.log("%s in history", s);
                         var s = keyHistory[pos];
                         if (size > s.length) {
                             //our target size is longer than the key stored in history
@@ -491,6 +495,7 @@ var Parser = function(input) {
             return cb(null, new Buffer(""));
         }
         var buf = input.read(size);
+        console.log(buf);
         if (buf) {
             return cb(null, buf);
         }
@@ -501,9 +506,9 @@ var Parser = function(input) {
         }
     }
 };
-util.inherits(Parser, EventEmitter);
-module.exports = Parser;
 var counts = {
-    packets: {},
-    game_events: {}
+    packets: {}
 };
+util.inherits(Parser, EventEmitter);
+global.Parser = Parser;
+module.exports = Parser;

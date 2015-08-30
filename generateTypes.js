@@ -1,12 +1,12 @@
 /**
  * Generates a mapping of ids to protobuf message names
  **/
-var fs = require('fs');
 var ProtoBuf = require('protobufjs');
 var path = require('path');
+var fs = require('fs');
 var builder = ProtoBuf.newBuilder();
-var protos = fs.readdirSync(path.join(__dirname, "proto"));
-protos.forEach(function(p) {
+var files = fs.readdirSync("./proto");
+files.forEach(function(p) {
     ProtoBuf.loadProtoFile(path.join(__dirname, "proto", p), builder);
 });
 var dota = builder.build();
@@ -50,7 +50,7 @@ var types = {
 };
 types["DOTA_CHAT_MESSAGE"] = reverse(dota["DOTA_CHAT_MESSAGE"]);
 types["DOTA_COMBATLOG_TYPES"] = reverse(dota["DOTA_COMBATLOG_TYPES"]);
-fs.writeFileSync(path.join(__dirname, 'types.json'), JSON.stringify(types, null, 2));
+process.stdout.write(JSON.stringify(types, null, 2));
 
 function generate(enums) {
     //using the dota object, each dota[enumName] is an object mapping an internal name to its packet number

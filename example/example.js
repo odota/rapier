@@ -18,7 +18,7 @@ var entities = p.entities;
 p.on("CDemoFileInfo", function(data) {
     console.log(data);
 });
-/*
+
 //all chat
 p.on("CUserMessageSayText2", function(data) {
     //console.log(data);
@@ -79,7 +79,7 @@ p.on("CNETMsg_Tick", function(data){
 p.on("CUserMessageTextMsg", function(data){
     //console.log(data);
 });
-*/
+
 //everything
 //p.on("*", function(data){console.log(data);})
 console.time('parse');

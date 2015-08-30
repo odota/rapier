@@ -1,0 +1,44 @@
+{
+  "name": "rapier",
+  "version": "1.0.0",
+  "description": "A JavaScript Dota 2 (Source 2) replay parsing library.",
+  "main": "Parser.js",
+  "directories": {
+    "example": "example"
+  },
+  "dependencies": {
+    "async": "^1.4.2",
+    "bytebuffer": "^4.0.0",
+    "long": "^2.2.5",
+    "protobufjs": "4.0.0",
+    "snappy": "^4.0.0"
+  },
+  "devDependencies": {
+    "json-loader": "^0.5.2",
+    "webpack": "^1.12.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "webpack": "webpack",
+    "watch": "webpack --watch",
+    "browserify": "browserify ./Parser.js > ./build/rapier.js",
+    "build": "bash update_proto.sh && pbjs ./proto/* > ./build/protos.json && node generateTypes.js > ./build/types.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yasp-dota/rapier.git"
+  },
+  "keywords": [
+    "dota",
+    "dota2",
+    "replay",
+    "parser",
+    "parsing"
+  ],
+  "author": "",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/yasp-dota/rapier/issues"
+  },
+  "homepage": "https://github.com/yasp-dota/rapier#readme"
+}

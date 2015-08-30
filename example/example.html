@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset=utf-8>
+    <title>Browser Parsing Demo</title>
+    <style>
+        #holder {
+            border: 10px dashed #ccc;
+            width: 300px;
+            height: 300px;
+        }
+        
+        #holder.hover {
+            border: 10px dashed #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="holder"></div>
+    <!--
+    <input type="file" id="file">
+    -->
+    <p id="status"></p>
+    <p>Drag a replay from your desktop on to the drop zone above to parse.</p>
+</body>
+<script src="../build/rapier.js"></script>
+<script>
+    var holder = document.getElementById('holder'),
+        state = document.getElementById('status');
+    if (typeof window.FileReader === 'undefined') {
+        state.className = 'fail';
+    }
+    else {
+        state.className = 'success';
+        state.innerHTML = 'File API & FileReader available';
+    }
+    holder.ondragover = function() {
+        this.className = 'hover';
+        return false;
+    };
+    holder.ondrop = function(e) {
+        var file = e.dataTransfer.files[0];
+        parseFile(file);
+        return false;
+    };
+    /*
+    document.getElementById('file').addEventListener('input', function(e) {
+        parseFile(e.target.files[0]);
+    }, false);
+*/
+    function parseFile(file) {
+        console.log(window);
+        console.log(file);
+        var reader = new FileReader();
+        reader.readAsArrayBuffer(file);
+        reader.addEventListener("load", function(e) {
+            var buf = e.target.result;
+            console.log(e, reader, buf);
+            var p = new Parser(buf);
+            p.on("*", function(data) {
+                console.log(data);
+            })
+            p.start(function(err) {
+                console.log(err);
+            });
+        });
+    }
+</script>
+
+</html>
