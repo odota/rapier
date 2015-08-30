@@ -19,9 +19,6 @@
 
 <body>
     <div id="holder"></div>
-    <!--
-    <input type="file" id="file">
-    -->
     <p id="status"></p>
     <p>Drag a replay from your desktop on to the drop zone above to parse.</p>
 </body>
@@ -45,14 +42,8 @@
         parseFile(file);
         return false;
     };
-    /*
-    document.getElementById('file').addEventListener('input', function(e) {
-        parseFile(e.target.files[0]);
-    }, false);
-*/
+
     function parseFile(file) {
-        console.log(window);
-        console.log(file);
         var reader = new FileReader();
         reader.readAsArrayBuffer(file);
         reader.addEventListener("load", function(e) {
@@ -63,17 +54,8 @@
             p.on("CUserMessageSayText2", function(data) {
                 console.log(data);
             });
-            //map pings
-            p.on("CDOTAUserMsg_LocationPing", function(data) {
-                console.log(data);
-            });
-            //user actions
-            p.on("CDOTAUserMsg_SpectatorPlayerUnitOrders", function(data) {
-                console.log(data);
-            });
-            p.on("*", function(data){
-                count+=1;
-                console.log(data);
+            p.on("*", function(data) {
+                count += 1;
             });
             console.time('parse');
             p.start(function(err) {

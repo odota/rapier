@@ -38,7 +38,7 @@ var Parser = function(input) {
         input = bufferStream;
     }
     var stop = false;
-    var p = this;
+    var p = new EventEmitter();
     //expose the gameeventdescriptor, stringtables, types, entities to the user and have the parser update them as it parses
     p.types = types;
     p.game_event_descriptors = {};
@@ -153,6 +153,7 @@ var Parser = function(input) {
                     if (dota[name]) {
                         if (listening(name)) {
                             dem.data = dota[name].decode(dem.data);
+                            dem.data.proto_name = name;
                             p.emit("*", dem.data);
                             p.emit(name, dem.data);
                         }
@@ -190,7 +191,8 @@ var Parser = function(input) {
         //the inner data of a CDemoPacket is raw bits (no longer byte aligned!)
         var packets = [];
         //extract the native buffer from the ByteBuffer decoded by protobufjs
-        var buf = msg.data.toBuffer();
+        //rewrap it in a new Buffer to force usage of node buffer shim rather than ArrayBuffer when in browser
+        var buf = new Buffer(msg.data.toBuffer());
         //convert the buffer object into a bitstream so we can read bits from it
         var bs = new BitStream(buf);
         //read until less than 8 bits left
@@ -225,6 +227,7 @@ var Parser = function(input) {
                 if (dota[name]) {
                     if (listening(name)) {
                         packet.data = dota[name].decode(packet.data);
+                        packet.data.proto_name = name;
                         p.emit("*", packet.data);
                         p.emit(name, packet.data);
                     }
@@ -243,7 +246,7 @@ var Parser = function(input) {
         //create a stringtable
         //console.error(data);
         //extract the native buffer from the string_data ByteBuffer, with the offset removed
-        var buf = data.string_data.toBuffer();
+        var buf = new Buffer(data.string_data.toBuffer());
         if (data.data_compressed) {
             //decompress the string data with snappy
             //early source 2 replays may use LZSS, we can detect this by reading the first four bytes of buffer
@@ -273,7 +276,7 @@ var Parser = function(input) {
         //retrieve table by id
         var table = p.string_tables.tables[data.table_id];
         //extract native buffer
-        var buf = data.string_data.toBuffer();
+        var buf = new Buffer(data.string_data.toBuffer());
         if (table) {
             var items = parseStringTableData(buf, data.num_changed_entries, table.user_data_fixed_size, table.user_data_size);
             var string_data = table.string_data;
@@ -498,6 +501,5 @@ var Parser = function(input) {
         }
     }
 };
-util.inherits(Parser, EventEmitter);
 global.Parser = Parser;
 module.exports = Parser;
