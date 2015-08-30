@@ -151,8 +151,8 @@ module.exports = BitStream;
  * Class creating a Source 2 Dota 2 replay parser
  **/
 var ProtoBuf = require('protobufjs');
-//use pure JS snappy if in browser, node version otherwise
-var snappy = require('snappy');
+//use pure JS snappy if in browser
+var snappy = typeof window === "undefined" ? require('snappy') : require('./snappy');
 var BitStream = require('./BitStream');
 var util = require('util');
 var EventEmitter = require('events').EventEmitter;
@@ -200,7 +200,6 @@ var Parser = function(input) {
         input.on('end', function() {
             stop = true;
             input.removeAllListeners();
-            console.error(counts);
             return cb();
         });
         async.series({
@@ -369,10 +368,6 @@ var Parser = function(input) {
         for (var i = 0; i < packets.length; i++) {
             var packet = packets[i];
             var packType = packet.type;
-            //TELEMETRY
-            var pt = packetTypes[packType] || packType;
-            var ct = counts.packets;
-            ct[pt] = ct[pt] ? ct[pt] + 1 : 1;
             if (packType in packetTypes) {
                 //lookup the name of the proto message for this packet type
                 var name = packetTypes[packType];
@@ -577,7 +572,7 @@ var Parser = function(input) {
 
     function readByte(cb) {
         readBytes(1, function(err, buf) {
-            cb(err, buf.readInt8());
+            cb(err, buf.readInt8(0));
         });
     }
 
@@ -589,7 +584,7 @@ var Parser = function(input) {
 
     function readUint32(cb) {
         readBytes(4, function(err, buf) {
-            cb(err, buf.readUInt32LE());
+            cb(err, buf.readUInt32LE(0));
         });
     }
 
@@ -642,7 +637,6 @@ var Parser = function(input) {
             return cb(null, new Buffer(""));
         }
         var buf = input.read(size);
-        console.log(buf);
         if (buf) {
             return cb(null, buf);
         }
@@ -653,14 +647,11 @@ var Parser = function(input) {
         }
     }
 };
-var counts = {
-    packets: {}
-};
 util.inherits(Parser, EventEmitter);
 global.Parser = Parser;
 module.exports = Parser;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"./BitStream":1,"./build/protos.json":3,"./build/types.json":4,"async":5,"buffer":31,"events":9,"protobufjs":37,"snappy":39,"stream":27,"util":30}],3:[function(require,module,exports){
+},{"./BitStream":1,"./build/protos.json":3,"./build/types.json":4,"./snappy":40,"async":5,"buffer":31,"events":9,"protobufjs":37,"snappy":39,"stream":27,"util":30}],3:[function(require,module,exports){
 module.exports={
     "package": null,
     "options": {
@@ -70015,4 +70006,113 @@ exports.uncompressSync = function (compressed, opts) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"assert":7,"bindings":38,"buffer":31}]},{},[2]);
+},{"assert":7,"bindings":38,"buffer":31}],40:[function(require,module,exports){
+/**
+ * A pure JS implementation of Snappy decompression, for use in the browser
+ **/
+var ByteBuffer = require('bytebuffer');
+module.exports = {
+    //TODO optimize speed by using native buffer or node binding?
+    uncompressSync: function(buf) {
+        var input = ByteBuffer.wrap(buf);
+        var size = input.readVarint32();
+        var output = new ByteBuffer(size);
+        output.offset = 0;
+        output.length = size;
+        input.littleEndian = true;
+        var copy = function(output, length, offset) {
+            var ptr = output.offset - offset;
+            for (var i = 0; i < length; ++i) {
+                output.writeByte(output.readByte(ptr + i));
+            }
+        };
+        while (input.remaining()) {
+            var tag = input.readUint8();
+            switch (tag & 3) {
+                case 0:
+                    var length = (tag >> 2) + 1;
+                    if (length >= 61) {
+                        var bytes = length - 60;
+                        length = 0;
+                        for (var i = 0; i < bytes; ++i) {
+                            length |= input.readUint8() << (8 * i);
+                        }
+                        length++;
+                    }
+                    for (var i = 0; i < length; ++i) {
+                        output.writeByte(input.readByte());
+                    }
+                    break;
+                case 1:
+                    var length = ((tag >> 2) & 7) + 4;
+                    var offset = ((tag >> 5) << 8) | input.readUint8();
+                    copy(output, length, offset);
+                    break;
+                case 2:
+                    var length = (tag >> 2) + 1;
+                    var offset = input.readUint16();
+                    copy(output, length, offset);
+                    break;
+                case 3:
+                    var length = (tag >> 2) + 1;
+                    var offset = input.readUint32();
+                    copy(output, length, offset);
+                    break;
+            };
+        }
+        output.offset = 0;
+        return output.toBuffer();
+    }
+};
+/*
+//attempt to use native node buffer
+function uncompressSync(buf) {
+    var readOffset = 0;
+    var writeOffset = 0;
+    //TODO implement reading of varint from native buffer
+    var size = buf.readVarint32();
+    var output = new Buffer(size);
+    var copy = function(output, length, offset) {
+        var ptr = writeOffset - offset;
+        for (var i = 0; i < length; ++i) {
+            output.writeUInt8LE(output.readUInt8(ptr + i));
+        }
+    };
+    while (readOffset<size) {
+        var tag = buf.readUint8();
+        switch (tag & 3) {
+            case 0:
+                var length = (tag >> 2) + 1;
+                if (length >= 61) {
+                    var bytes = length - 60;
+                    length = 0;
+                    for (var i = 0; i < bytes; ++i) {
+                        length |= buf.readUInt8() << (8 * i);
+                    }
+                    length++;
+                }
+                for (var i = 0; i < length; ++i) {
+                    output.writeUInt8LE(buf.readUInt8);
+                }
+                break;
+            case 1:
+                var length = ((tag >> 2) & 7) + 4;
+                var readOffset = ((tag >> 5) << 8) | buf.readUInt8();
+                copy(output, length, readOffset);
+                break;
+            case 2:
+                var length = (tag >> 2) + 1;
+                var readOffset = buf.readUInt16LE();
+                copy(output, length, readOffset);
+                break;
+            case 3:
+                var length = (tag >> 2) + 1;
+                var readOffset = buf.readUInt32LE();
+                copy(output, length, readOffset);
+                break;
+        };
+    }
+    return output;
+};
+*/
+},{"bytebuffer":35}]},{},[2]);

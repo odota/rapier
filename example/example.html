@@ -56,14 +56,32 @@
         var reader = new FileReader();
         reader.readAsArrayBuffer(file);
         reader.addEventListener("load", function(e) {
-            var buf = e.target.result;
-            console.log(e, reader, buf);
+            var buf = reader.result;
+            var count = 0;
             var p = new Parser(buf);
-            p.on("*", function(data) {
+            //all chat
+            p.on("CUserMessageSayText2", function(data) {
                 console.log(data);
-            })
+            });
+            //map pings
+            p.on("CDOTAUserMsg_LocationPing", function(data) {
+                console.log(data);
+            });
+            //user actions
+            p.on("CDOTAUserMsg_SpectatorPlayerUnitOrders", function(data) {
+                console.log(data);
+            });
+            p.on("*", function(data){
+                count+=1;
+                console.log(data);
+            });
+            console.time('parse');
             p.start(function(err) {
-                console.log(err);
+                if (err) {
+                    console.log(err);
+                }
+                console.log(count);
+                console.timeEnd('parse');
             });
         });
     }

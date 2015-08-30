@@ -51,7 +51,6 @@ var Parser = function(input) {
         input.on('end', function() {
             stop = true;
             input.removeAllListeners();
-            console.error(counts);
             return cb();
         });
         async.series({
@@ -220,10 +219,6 @@ var Parser = function(input) {
         for (var i = 0; i < packets.length; i++) {
             var packet = packets[i];
             var packType = packet.type;
-            //TELEMETRY
-            var pt = packetTypes[packType] || packType;
-            var ct = counts.packets;
-            ct[pt] = ct[pt] ? ct[pt] + 1 : 1;
             if (packType in packetTypes) {
                 //lookup the name of the proto message for this packet type
                 var name = packetTypes[packType];
@@ -428,7 +423,7 @@ var Parser = function(input) {
 
     function readByte(cb) {
         readBytes(1, function(err, buf) {
-            cb(err, buf.readInt8());
+            cb(err, buf.readInt8(0));
         });
     }
 
@@ -440,7 +435,7 @@ var Parser = function(input) {
 
     function readUint32(cb) {
         readBytes(4, function(err, buf) {
-            cb(err, buf.readUInt32LE());
+            cb(err, buf.readUInt32LE(0));
         });
     }
 
@@ -493,7 +488,6 @@ var Parser = function(input) {
             return cb(null, new Buffer(""));
         }
         var buf = input.read(size);
-        console.log(buf);
         if (buf) {
             return cb(null, buf);
         }
@@ -503,9 +497,6 @@ var Parser = function(input) {
             });
         }
     }
-};
-var counts = {
-    packets: {}
 };
 util.inherits(Parser, EventEmitter);
 global.Parser = Parser;

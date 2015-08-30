@@ -20,7 +20,7 @@ p.on("CDemoFileInfo", function(data) {
 
 //all chat
 p.on("CUserMessageSayText2", function(data) {
-    //console.log(data);
+    console.log(data);
 });
 //map pings
 p.on("CDOTAUserMsg_LocationPing", function(data) {
