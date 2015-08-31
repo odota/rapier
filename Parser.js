@@ -113,7 +113,6 @@ var Parser = function(input) {
         var buf = new Buffer(msg.entity_data.toBuffer());
         var bs = new BitStream(buf);
         var index = -1;
-        var error = "incomplete";
         return;
         //read as many entries as the message says to
         for (var i = 0; i < msg.updated_entries; i++) {
@@ -170,18 +169,13 @@ var Parser = function(input) {
                     p.entities[index] = pe;
                     break;
                 case "U":
-                    /*
-        			// Find the existing packetEntity
-        			pe, ok := p.packetEntities[index]
-        			if !ok {
-        				_debugf("unable to find packet entity %d for update", index)
-        			}
-        
-        			// Read properties and update the packetEntity
-        			for k, v := range ReadProperties(r, pe.flatTbl) {
-        				pe.properties[k] = v
-        			}
-        			*/
+                    // Find the existing packetEntity
+                    var pe = p.entities[index];
+                    // Read properties and update the packetEntity
+                    var properties = readProperties(bs, pe.flatTbl);
+                    for (var key in properties) {
+                        pe.properties[key] = properties[key];
+                    }
                     break;
                 case "D":
                     delete p.entities[index];
@@ -366,24 +360,24 @@ var Parser = function(input) {
         return;
     }
 
-    function readCreateStringTable(data) {
+    function readCreateStringTable(msg) {
         //create a stringtable
         //console.error(data);
         //extract the native buffer from the string_data ByteBuffer, with the offset removed
-        var buf = new Buffer(data.string_data.toBuffer());
-        if (data.data_compressed) {
+        var buf = new Buffer(msg.string_data.toBuffer());
+        if (msg.data_compressed) {
             //decompress the string data with snappy
             //early source 2 replays may use LZSS, we can detect this by reading the first four bytes of buffer
             buf = snappy.uncompressSync(buf);
         }
         //pass the buffer and parse string table data from it
-        var items = parseStringTableData(buf, data.num_entries, data.user_data_fixed_size, data.user_data_size);
+        var items = parseStringTableData(buf, msg.num_entries, msg.user_data_fixed_size, msg.user_data_size);
         //console.error(items);
         //remove the buf and replace with items, which is a decoded version of it
-        data.string_data = {};
+        msg.string_data = {};
         // Insert the items into the table as an object
         items.forEach(function(it) {
-            data.string_data[it.index] = it;
+            msg.string_data[it.index] = it;
         });
         /*
         // Apply the updates to baseline state
@@ -391,18 +385,18 @@ var Parser = function(input) {
 	    	p.updateInstanceBaseline()
 	    }
         */
-        p.string_tables.byName[data.name] = data;
-        p.string_tables.tables.push(data);
+        p.string_tables.byName[msg.name] = msg;
+        p.string_tables.tables.push(msg);
     }
 
-    function readUpdateStringTable(data) {
+    function readUpdateStringTable(msg) {
         //update a string table
         //retrieve table by id
-        var table = p.string_tables.tables[data.table_id];
+        var table = p.string_tables.tables[msg.table_id];
         //extract native buffer
-        var buf = new Buffer(data.string_data.toBuffer());
+        var buf = new Buffer(msg.string_data.toBuffer());
         if (table) {
-            var items = parseStringTableData(buf, data.num_changed_entries, table.user_data_fixed_size, table.user_data_size);
+            var items = parseStringTableData(buf, msg.num_changed_entries, table.user_data_fixed_size, table.user_data_size);
             var string_data = table.string_data;
             items.forEach(function(it) {
                 //console.error(it);
