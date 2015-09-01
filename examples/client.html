@@ -21,6 +21,7 @@
     <div id="holder"></div>
     <p id="status"></p>
     <p>Drag a replay from your desktop on to the drop zone above to parse.</p>
+    <p id="log"></p>
 </body>
 <script src="../build/rapier.js"></script>
 <script>
@@ -53,6 +54,7 @@
             //all chat
             p.on("CUserMessageSayText2", function(data) {
                 console.log(data);
+                document.getElementById("log").innerHTML += JSON.stringify(data)+"<br>";
             });
             p.on("*", function(data) {
                 count += 1;

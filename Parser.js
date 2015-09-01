@@ -19,15 +19,18 @@ var dota = builder.build();
 //it appears that things like the gameeventlist and createstringtables calls are here?
 dota["CDemoSignonPacket"] = dota["CDemoPacket"];
 //console.error(Object.keys(dota));
-var Parser = function(input) {
+var Parser = function(input, options) {
     //if a JS ArrayBuffer, convert to native node buffer
     if (input.byteLength) {
+        /*
         var buffer = new Buffer(input.byteLength);
         var view = new Uint8Array(input);
         for (var i = 0; i < buffer.length; i++) {
             buffer[i] = view[i];
         }
         input = buffer;
+        */
+        input = new Buffer(input);
     }
     //wrap a passed buffer in a stream
     if (Buffer.isBuffer(input)) {
@@ -39,10 +42,10 @@ var Parser = function(input) {
     var p = new EventEmitter();
     //expose the gameeventdescriptor, stringtables, types, entities to the user and have the parser update them as it parses
     p.types = types;
-    p.game_event_descriptors = {};
-    p.string_tables = {
+    p.gameEventDescriptors = {};
+    p.stringTables = {
         tables: [],
-        byName: {}
+        tablesByName: {}
     };
     p.classInfo = {};
     p.serializers = {};
@@ -89,18 +92,18 @@ var Parser = function(input) {
         //readCDemoStringTables(data.string_table);
         readCDemoPacket(data.packet);
     });
-    //string tables may mutate over the lifetime of the replay.
-    //Therefore we listen for create/update events and modify the table as needed.
-    p.on("CSVCMsg_CreateStringTable", readCreateStringTable);
-    p.on("CSVCMsg_UpdateStringTable", readUpdateStringTable);
     //this packet sets up our game event descriptors
     p.on("CMsgSource1LegacyGameEventList", function(msg) {
         //console.error(data);
-        var gameEventDescriptors = p.game_event_descriptors;
+        var gameEventDescriptors = p.gameEventDescriptors;
         for (var i = 0; i < msg.descriptors.length; i++) {
             gameEventDescriptors[msg.descriptors[i].eventid] = msg.descriptors[i];
         }
     });
+    //string tables may mutate over the lifetime of the replay.
+    //Therefore we listen for create/update events and modify the table as needed.
+    p.on("CSVCMsg_CreateStringTable", readCreateStringTable);
+    p.on("CSVCMsg_UpdateStringTable", readUpdateStringTable);
     //contains some useful data for entity parsing
     p.on("CSVCMsg_ServerInfo", function(msg) {
         p.classIdSize = Math.log(msg.max_classes);
@@ -385,14 +388,14 @@ var Parser = function(input) {
 	    	p.updateInstanceBaseline()
 	    }
         */
-        p.string_tables.byName[msg.name] = msg;
-        p.string_tables.tables.push(msg);
+        p.stringTables.tablesByName[msg.name] = msg;
+        p.stringTables.tables.push(msg);
     }
 
     function readUpdateStringTable(msg) {
         //update a string table
         //retrieve table by id
-        var table = p.string_tables.tables[msg.table_id];
+        var table = p.stringTables.tables[msg.table_id];
         //extract native buffer
         var buf = new Buffer(msg.string_data.toBuffer());
         if (table) {

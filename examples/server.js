@@ -5,8 +5,8 @@ var p = new Parser(process.stdin);
 //PROPERTIES
 //the parser exposes these properties in order to help you interpret the content of the messages
 var types = p.types;
-var game_event_descriptors = p.game_event_descriptors;
-var string_tables = p.string_tables;
+var gameEventDescriptors = p.gameEventDescriptors;
+var stringTables = p.stringTables;
 var entities = p.entities;
 //EVENTS
 //add an event listener with the name of the protobuf message in order to listen for it
@@ -32,19 +32,18 @@ p.on("CDOTAUserMsg_ChatEvent", function(data) {
     //console.log(data);
 });
 //gameevents
+
 p.on("CMsgSource1LegacyGameEvent", function(data) {
     //get the event name from descriptor
-    data.event_name = game_event_descriptors[data.eventid].name;
-    //use the descriptor to read the gameevent data
+    data.event_name = gameEventDescriptors[data.eventid].name;
+    //use the descriptor to read the gameevent data and build a gameevent object
     var gameEvent = {};
     data.keys.forEach(function(k, i) {
         //each k is an object with an index and some values (one for each primitive, only one is populated)
         //we want to get the name of the property and which value to read based on the descriptor for this eventid
-        //TODO cache the key/index for each eventid for speedup?
-        var key = game_event_descriptors[data.eventid].keys[i].name;
-        var index = game_event_descriptors[data.eventid].keys[i].type;
+        var key = gameEventDescriptors[data.eventid].keys[i].name;
+        var index = gameEventDescriptors[data.eventid].keys[i].type;
         //get the value of the key in object for that type
-        //TODO set the corresponding property name for each index as constants?
         var value = k[Object.keys(k)[index]];
         //populate the gameevent
         gameEvent[key] = value;
@@ -57,8 +56,8 @@ p.on("CMsgSource1LegacyGameEvent", function(data) {
         //look up the type with DOTA_COMBATLOG_TYPES
         cle.name = types.DOTA_COMBATLOG_TYPES[cle.type];
         //translate the entries using stringtable
-        var combatLogNames = string_tables.byName["CombatLogNames"];
-        //following fields might require a translation with stringtable, but whether they do is dependent on the combat log type
+        var combatLogNames = stringTables.tablesByName["CombatLogNames"];
+        //translate the following fields with the stringtable
         cle.sourcename = combatLogNames.string_data[cle.sourcename].key;
         cle.targetname = combatLogNames.string_data[cle.targetname].key;
         cle.attackername = combatLogNames.string_data[cle.attackername].key;

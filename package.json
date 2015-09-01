@@ -19,7 +19,7 @@
     "watchify": "^3.3.1"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "bash test_js_parser.sh",
     "browserify": "browserify ./Parser.js | uglifyjs > ./build/rapier.min.js && browserify ./Parser.js > ./build/rapier.js",
     "watchify": "watchify ./Parser.js -o ./build/rapier.js",
     "update": "bash update_proto.sh",
