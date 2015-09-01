@@ -43,8 +43,13 @@ var types = {
     packets: generate(packetEnums),
     dems: generate(demoEnums)
 };
-types["DOTA_CHAT_MESSAGE"] = reverse(dota["DOTA_CHAT_MESSAGE"]);
-types["DOTA_COMBATLOG_TYPES"] = reverse(dota["DOTA_COMBATLOG_TYPES"]);
+for (var key in dota) {
+    //don't try to build mapping if function
+    //otherwise reverse the enum to help interpret ids
+    if (typeof dota[key][Object.keys(dota[key])[0]] !== "function") {
+        types[key] = reverse(dota[key]);
+    }
+}
 process.stdout.write(JSON.stringify(types, null, 2));
 
 function generate(enums) {

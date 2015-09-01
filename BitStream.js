@@ -44,7 +44,7 @@ BitStream.prototype.readBits = function(n) {
         value &= ((1 << n) - 1);
     }
     else {
-        //trying to read 32+ bits with native JS probably won't work because we must then read five bytes from the backing buffer
+        //trying to read 32+ bits with native JS probably won't work due to 32 bit limit on shift operations
         //this means in practice we may have difficulty with n >= 25 bits (since offset can be up to 7)
         //can't fit that into a 32 bit int unless we use JS Long, which is slow
         console.error(bitsToRead);

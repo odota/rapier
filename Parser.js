@@ -57,8 +57,8 @@ var Parser = function(input, options) {
                 });
             },
             //two uint32s related to replay size
-            "size1": readUint32,
-            "size2": readUint32,
+            "size1": readUInt32,
+            "size2": readUInt32,
             "demo": function(cb) {
                 //keep parsing demo messages until it hits a stop condition
                 async.until(function() {
@@ -94,13 +94,58 @@ var Parser = function(input, options) {
     });
     //string tables may mutate over the lifetime of the replay.
     //Therefore we listen for create/update events and modify the table as needed.
-    p.on("CSVCMsg_CreateStringTable", readCreateStringTable);
-    p.on("CSVCMsg_UpdateStringTable", readUpdateStringTable);
+    p.on("CSVCMsg_CreateStringTable", function(msg) {
+        readCreateStringTable(msg);
+        // Apply the updates to baseline state
+        if (msg.name === "instancebaseline") {
+            updateInstanceBaseline();
+        }
+    });
+    p.on("CSVCMsg_UpdateStringTable", function(msg) {
+        readUpdateStringTable(msg);
+        // Apply the updates to baseline state
+        if (msg.name === "instancebaseline") {
+            updateInstanceBaseline();
+        }
+    });
     //contains some useful data for entity parsing
     p.on("CSVCMsg_ServerInfo", function(msg) {
         p.classIdSize = Math.log(msg.max_classes);
     });
-    //TODO entities. huffman trees, property decoding?!  requires parsing CDemoClassInfo, and instancebaseline string table?
+    //stores mapping of entity class id to a string name
+    p.on("CDemoClassInfo", function(msg) {
+        msg.classes.forEach(function(c) {
+            p.classInfo[c.class_id] = c.network_name;
+        });
+        // update the instancebaseline
+        updateInstanceBaseline();
+    });
+    //TODO parse sendtable dem message
+    p.on("CDemoSendTables", function(msg) {
+        //extract data
+        var buf = new Buffer(msg.data.toBuffer());
+        var bs = new BitStream(buf);
+        //first bytes are a varuint
+        var size = bs.readVarUInt();
+        //next bytes are a CSVCMsg_FlattenedSerializer, decode with protobuf
+        var data = bs.readBuffer(size * 8);
+        data = dota.CSVCMsg_FlattenedSerializer.decode(data);
+        var fs = {
+            serializers: {},
+            //proto: data,
+            propertySerializers: {}
+        };
+        data.serializers.forEach(function(s) {
+            var name = data.symbols[s.serializer_name_sym];
+            var version = s.serializer_version;
+            if (!name in fs.serializers){
+                fs.serializers[name] = {};
+            }
+            fs.serializers[name][version] = parseSerializer(s);
+        });
+        p.serializers = fs;
+    });
+    //TODO entities. huffman trees, property decoding?!
     p.on("CSVCMsg_PacketEntities", function(msg) {
         //packet entities are contained in a buffer in this packet
         //we also need to readproperties
@@ -143,10 +188,9 @@ var Parser = function(input, options) {
                 case "C":
                     // Create a new packetEntity.
                     var classId = bs.readBits(p.server_info.classIdSize);
-                    // Get the associated class.
-                    //TODO we need to parse class info from CDemoClassInfo so we can map this id to a class
+                    // Get the associated class for this entity id.  This is a name (string).
                     var className = p.classInfo[classId];
-                    // Get the associated serializer
+                    // Get the associated serializer.  These are keyed by entity name.
                     //TODO we need to create serializers
                     var flatTbl = p.serializers[className][0];
                     var pe = {
@@ -157,17 +201,16 @@ var Parser = function(input, options) {
                         properties: {},
                     };
                     // Skip the 10 serial bits for now.
-                    //TODO implement a seek function for marginally more performance?
                     bs.readBits(10);
                     // Read properties and set them in the packetEntity
-                    pe.properties = readProperties(bs, pe.flatTbl);
+                    pe.properties = readEntityProperties(bs, pe.flatTbl);
                     p.entities[index] = pe;
                     break;
                 case "U":
                     // Find the existing packetEntity
                     var pe = p.entities[index];
                     // Read properties and update the packetEntity
-                    var properties = readProperties(bs, pe.flatTbl);
+                    var properties = readEntityProperties(bs, pe.flatTbl);
                     for (var key in properties) {
                         pe.properties[key] = properties[key];
                     }
@@ -182,18 +225,18 @@ var Parser = function(input, options) {
     return p;
     /**
      * Reads the next DEM message from the replay (outer message)
-     * Accepts a callback since we may not have the entire message yet if streaming
+     * This method is asynchronous since we may not have the entire message yet if streaming
      **/
     function readDemoMessage(cb) {
         async.series({
-            command: readVarint32,
-            tick: readVarint32,
-            size: readVarint32
+            command: readVarUInt,
+            tick: readVarUInt,
+            size: readVarUInt
         }, function(err, result) {
             if (err) {
                 return cb(err);
             }
-            readBytes(result.size, function(err, buf) {
+            readBuffer(result.size, function(err, buf) {
                 // Read a command header, which includes both the message type
                 // well as a flag to determine whether or not whether or not the
                 // message is compressed with snappy.
@@ -232,9 +275,8 @@ var Parser = function(input, options) {
                     if (dota[name]) {
                         if (listening(name)) {
                             dem.data = dota[name].decode(dem.data);
-                            dem.data.proto_name = name;
-                            p.emit("*", dem.data);
-                            p.emit(name, dem.data);
+                            p.emit("*", dem.data, name);
+                            p.emit(name, dem.data, name);
                         }
                     }
                     else {
@@ -248,9 +290,10 @@ var Parser = function(input, options) {
             });
         });
     }
-    // Internal parser for callback OnCDemoPacket, responsible for extracting
-    // multiple inner packets from a single CDemoPacket. This is the main structure
-    // that contains all other data types in the demo file.
+    /**
+     * Processes a DEM message containing inner packets.
+     * This is the main structure that contains all other data types in the demo file.
+     **/
     function readCDemoPacket(msg) {
         /*
         message CDemoPacket {
@@ -270,7 +313,7 @@ var Parser = function(input, options) {
         //the inner data of a CDemoPacket is raw bits (no longer byte aligned!)
         var packets = [];
         //extract the native buffer from the ByteBuffer decoded by protobufjs
-        //rewrap it in a new Buffer to force usage of node buffer shim rather than ArrayBuffer when in browser
+        //rewrap it in a new Buffer to force usage of node Buffer wrapper rather than ArrayBuffer when in browser
         var buf = new Buffer(msg.data.toBuffer());
         //convert the buffer object into a bitstream so we can read bits from it
         var bs = new BitStream(buf);
@@ -289,7 +332,7 @@ var Parser = function(input, options) {
         }
         //sort the inner packets by priority in order to ensure we parse dependent packets last
         packets.sort(function(a, b) {
-            //we must use a stable sort here in order to preserve order of packets when possible (for example, string tables)
+            //we must use a stable sort here in order to preserve order of packets when possible (for example, string tables must be parsed in the correct order or their ids are no longer valid)
             var p1 = priorities[packetTypes[a.type]] || 0;
             var p2 = priorities[packetTypes[b.type]] || 0;
             if (p1 === p2) {
@@ -306,9 +349,8 @@ var Parser = function(input, options) {
                 if (dota[name]) {
                     if (listening(name)) {
                         packet.data = dota[name].decode(packet.data);
-                        packet.data.proto_name = name;
-                        p.emit("*", packet.data);
-                        p.emit(name, packet.data);
+                        p.emit("*", packet.data, name);
+                        p.emit(name, packet.data, name);
                     }
                 }
                 else {
@@ -321,38 +363,104 @@ var Parser = function(input, options) {
         }
     }
     /**
-     * Given a bitstream and a flat table, return a mapping of properties
+     * Given a flattened serializer, reads its properties and return an object.
      **/
-    function readProperties(bs, table) {
+    function parseSerializer(s) {
+        //TODO implement
+    }
+    /**
+     * Given a bitstream and a property table, return a mapping of properties
+     **/
+    function readEntityProperties(bs, table) {
+        //TODO implement this
         /*
-        // Return type
-    	result = make(map[string]interface{})
-    
-    	// Generate the huffman tree and fieldpath
-    	huf := newFieldpathHuffman()
-    	fieldPath := newFieldpath(ser, &huf)
-    
-    	// Get a list of the included fields
-    	fieldPath.walk(r)
-    
-    	// iterate all the fields and set their corresponding values
-    	for _, f := range fieldPath.fields {
-    		if f.Field.Serializer.Decode == nil {
-    			result[f.Name] = r.readVarUint32()
-    			_debugf("Reading %s - %s as varint %v", f.Name, f.Field.Type, result[f.Name])
-    			continue
-    		}
-    
-    		if f.Field.Serializer.DecodeContainer != nil {
-    			result[f.Name] = f.Field.Serializer.DecodeContainer(r, f.Field)
-    		} else {
-    			result[f.Name] = f.Field.Serializer.Decode(r, f.Field)
-    		}
-    
-    		_debugf("Decoded: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
-    	}
+	// Return type
+	result = make(map[string]interface{})
+
+	// Copy baseline if any
+	if baseline != nil {
+		for k, v := range baseline {
+			result[k] = v
+		}
+	}
+
+	// Create fieldpath
+	fieldPath := newFieldpath(ser, &huf)
+
+	// Get a list of the included fields
+	fieldPath.walk(r)
+
+	// iterate all the fields and set their corresponding values
+	for _, f := range fieldPath.fields {
+		if f.Field.Serializer.Decode == nil {
+			result[f.Name] = r.readVarUint32()
+			_debugfl(6, "Decoded default: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
+			continue
+		}
+
+		if f.Field.Serializer.DecodeContainer != nil {
+			result[f.Name] = f.Field.Serializer.DecodeContainer(r, f.Field)
+		} else {
+			result[f.Name] = f.Field.Serializer.Decode(r, f.Field)
+		}
+
+		_debugfl(6, "Decoded: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
+	}
+
+	return result
     	*/
         return;
+    }
+    /**
+     * Given the current state of string tables and class info, updates the baseline state.
+     * This is state that is maintained throughout the parse and is used in parsing entities.
+     **/
+    function updateInstanceBaseline() {
+        //TODO implement
+        /*
+        // We can't update the instancebaseline until we have class info.
+	if !p.hasClassInfo {
+		return
+	}
+
+	stringTable, ok := p.stringTables.getTableByName("instancebaseline")
+	if !ok {
+		_debugf("skipping updateInstanceBaseline: no instancebaseline string table")
+		return
+	}
+
+	// Iterate through instancebaseline table items
+	for _, item := range stringTable.items {
+		// Get the class id for the string table item
+		classId, err := atoi32(item.key)
+		if err != nil {
+			_panicf("invalid instancebaseline key '%s': %s", item.key, err)
+		}
+
+		// Get the class name
+		className, ok := p.classInfo[classId]
+		if !ok {
+			_panicf("unable to find class info for instancebaseline key %d", classId)
+		}
+
+		// Create an entry in the map if needed
+		if _, ok := p.classBaseline[classId]; !ok {
+			p.classBaseline[classId] = make(map[string]interface{})
+		}
+
+		// Get the send table associated with the class.
+		sendTable, ok := p.sendTables.getTableByName(className)
+		if !ok {
+			_panicf("unable to find send table %s for instancebaseline key %d", className, classId)
+		}
+
+		// Parse the properties out of the string table buffer and store
+		// them as the class baseline in the Parser.
+		if len(item.value) > 0 {
+			p.classBaseline[classId] = readProperties(newReader(item.value), sendTable)
+		}
+	}
+	*/
     }
 
     function readCreateStringTable(msg) {
@@ -374,12 +482,6 @@ var Parser = function(input, options) {
         items.forEach(function(it) {
             msg.string_data[it.index] = it;
         });
-        /*
-        // Apply the updates to baseline state
-	    if t.name == "instancebaseline" {
-	    	p.updateInstanceBaseline()
-	    }
-        */
         p.stringTables.tablesByName[msg.name] = msg;
         p.stringTables.tables.push(msg);
     }
@@ -416,14 +518,9 @@ var Parser = function(input, options) {
             });
         }
         else {
+            console.err("string table %s doesn't exist!", msg.table_id);
             throw "string table doesn't exist!";
         }
-        /*
-        // Apply the updates to baseline state
-	    if t.name == "instancebaseline" {
-	    	p.updateInstanceBaseline()
-	    }
-	    */
     }
     /**
      * Parses a buffer of string table data and returns an array of decoded items
@@ -537,52 +634,52 @@ var Parser = function(input, options) {
         return;
     }
 
-    function readByte(cb) {
-        readBytes(1, function(err, buf) {
+    function readUInt8(cb) {
+        readBuffer(1, function(err, buf) {
             cb(err, buf.readInt8(0));
         });
     }
 
     function readString(size, cb) {
-        readBytes(size, function(err, buf) {
+        readBuffer(size, function(err, buf) {
             cb(err, buf.toString());
         });
     }
 
-    function readUint32(cb) {
-        readBytes(4, function(err, buf) {
+    function readUInt32(cb) {
+        readBuffer(4, function(err, buf) {
             cb(err, buf.readUInt32LE(0));
         });
     }
 
-    function readVarint32(cb) {
-        readByte(function(err, tmp) {
+    function readVarUInt(cb) {
+        readUInt8(function(err, tmp) {
             if (tmp >= 0) {
                 return cb(err, tmp);
             }
             var result = tmp & 0x7f;
-            readByte(function(err, tmp) {
+            readUInt8(function(err, tmp) {
                 if (tmp >= 0) {
                     result |= tmp << 7;
                     return cb(err, result);
                 }
                 else {
                     result |= (tmp & 0x7f) << 7;
-                    readByte(function(err, tmp) {
+                    readUInt8(function(err, tmp) {
                         if (tmp >= 0) {
                             result |= tmp << 14;
                             return cb(err, result);
                         }
                         else {
                             result |= (tmp & 0x7f) << 14;
-                            readByte(function(err, tmp) {
+                            readUInt8(function(err, tmp) {
                                 if (tmp >= 0) {
                                     result |= tmp << 21;
                                     return cb(err, result);
                                 }
                                 else {
                                     result |= (tmp & 0x7f) << 21;
-                                    readByte(function(err, tmp) {
+                                    readUInt8(function(err, tmp) {
                                         result |= tmp << 28;
                                         if (tmp < 0) {
                                             err = "malformed varint detected";
@@ -598,7 +695,7 @@ var Parser = function(input, options) {
         });
     }
 
-    function readBytes(size, cb) {
+    function readBuffer(size, cb) {
         if (!size) {
             //return an empty buffer if reading 0 bytes
             return cb(null, new Buffer(""));
@@ -609,7 +706,7 @@ var Parser = function(input, options) {
         }
         else {
             input.once('readable', function() {
-                return readBytes(size, cb);
+                return readBuffer(size, cb);
             });
         }
     }

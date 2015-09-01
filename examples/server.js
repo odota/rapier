@@ -21,6 +21,15 @@ p.on("CDemoFileInfo", function(data) {
 p.on("CUserMessageSayText2", function(data) {
     //console.log(data);
 });
+//chat wheel
+p.on("CDOTAUserMsg_ChatWheel", function(data){
+    data.chat_message = types["EDOTAChatWheelMessage"][data.chat_message];
+    console.log(data);
+});
+//overhead events
+p.on("CDOTAUserMsg_OverheadEvent", function(data){
+    //console.log(data);
+});
 //map pings
 p.on("CDOTAUserMsg_LocationPing", function(data) {
     //console.log(data);
@@ -32,7 +41,6 @@ p.on("CDOTAUserMsg_ChatEvent", function(data) {
     //console.log(data);
 });
 //gameevents
-
 p.on("CMsgSource1LegacyGameEvent", function(data) {
     //get the event name from descriptor
     data.event_name = gameEventDescriptors[data.eventid].name;
@@ -70,13 +78,10 @@ p.on("CMsgSource1LegacyGameEvent", function(data) {
         }
     }
 });
-
 //every tick
-/*
 p.on("CNETMsg_Tick", function(data) {
     //console.log(data);
 });
-*/
 //console data (includes some stun/slow data and damage breakdown by target/ability)
 /*
 p.on("CUserMessageTextMsg", function(data) {
@@ -90,18 +95,19 @@ p.on("CDOTAUserMsg_SpectatorPlayerUnitOrders", function(data) {
 });
 */
 //everything
-/*
-p.on("*", function(data) {
+//each event is called with the protobuf message contents and the name of the message
+p.on("*", function(data, proto_name) {
     //console.log(data);
-})
-*/
+    counts[proto_name] = counts[proto_name] ? counts[proto_name] + 1 : 1;
+});
+
+var counts = {};
 console.time('parse');
 //start takes a callback function that is called when the parse completes
-var count = 0;
 p.start(function(err) {
     if (err) {
         console.error(err);
     }
-    console.error(count);
+    console.error(counts);
     console.timeEnd('parse');
 });
