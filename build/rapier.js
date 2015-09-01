@@ -151,20 +151,18 @@ BitStream.prototype.readUBitVar = function() {
 };
 module.exports = BitStream;
 }).call(this,require("buffer").Buffer)
-},{"buffer":28}],2:[function(require,module,exports){
+},{"buffer":29}],2:[function(require,module,exports){
 (function (global,Buffer){
 /**
  * Class creating a Source 2 Dota 2 replay parser
  **/
 var ProtoBuf = require('protobufjs');
 var snappy = require('./snappy');
-var BitStream = require('./BitStream');
 var EventEmitter = require('events').EventEmitter;
 var async = require('async');
 var stream = require('stream');
 var types = require('./build/types.json');
 var protos = require('./build/protos.json');
-var packetTypes = types.packets;
 var demTypes = types.dems;
 //read the protobufs and build a dota object for reference
 var builder = ProtoBuf.newBuilder();
@@ -187,7 +185,7 @@ var Parser = function(input, options) {
     }
     var stop = false;
     var p = new EventEmitter();
-    //expose the gameeventdescriptor, stringtables, types, entities to the user and have the parser update them as it parses
+    //the following properties are exposed to the user to help interpret messages
     p.types = types;
     p.gameEventDescriptors = {};
     p.stringTables = {
@@ -198,6 +196,8 @@ var Parser = function(input, options) {
     p.serializers = {};
     p.entities = {};
     p.classIdSize = 0;
+    p.dota = dota;
+    p.baseline = {};
     /**
      * Begins parsing the replay.
      **/
@@ -226,159 +226,73 @@ var Parser = function(input, options) {
         }, cb);
     };
     /**
+     * Returns whether there is an attached listener for this message name.
+     **/
+    p.isListening = function isListening(name) {
+        return p.listeners(name).length || p.listeners("*").length;
+    };
+    /**
+     * Given the current state of string tables and class info, updates the baseline state.
+     * This is state that is maintained throughout the parse and is used in parsing entities.
+     **/
+    p.updateInstanceBaseline = function updateInstanceBaseline(p) {
+        //TODO implement
+        /*
+        // We can't update the instancebaseline until we have class info.
+	if !p.hasClassInfo {
+		return
+	}
+
+	stringTable, ok := p.stringTables.getTableByName("instancebaseline")
+	if !ok {
+		_debugf("skipping updateInstanceBaseline: no instancebaseline string table")
+		return
+	}
+
+	// Iterate through instancebaseline table items
+	for _, item := range stringTable.items {
+		// Get the class id for the string table item
+		classId, err := atoi32(item.key)
+		if err != nil {
+			_panicf("invalid instancebaseline key '%s': %s", item.key, err)
+		}
+
+		// Get the class name
+		className, ok := p.classInfo[classId]
+		if !ok {
+			_panicf("unable to find class info for instancebaseline key %d", classId)
+		}
+
+		// Create an entry in the map if needed
+		if _, ok := p.classBaseline[classId]; !ok {
+			p.classBaseline[classId] = make(map[string]interface{})
+		}
+
+		// Get the send table associated with the class.
+		sendTable, ok := p.sendTables.getTableByName(className)
+		if !ok {
+			_panicf("unable to find send table %s for instancebaseline key %d", className, classId)
+		}
+
+		// Parse the properties out of the string table buffer and store
+		// them as the class baseline in the Parser.
+		if len(item.value) > 0 {
+			p.classBaseline[classId] = readProperties(newReader(item.value), sendTable)
+		}
+	}
+	*/
+    };
+    /**
      * Internal listeners to automatically process certain packets.
      * We abstract this away from the user so they don't need to worry about it.
      * For optimal speed we could allow the user to disable the ones they don't need
      **/
+    require("./packets")(p);
+    require("./stringTables")(p);
+    require("./entities")(p);
     p.on("CDemoStop", function(data) {
         //don't stop on CDemoStop since some replays have CDemoGameInfo after it
         //stop = true;
-    });
-    p.on("CDemoSignonPacket", readCDemoPacket);
-    p.on("CDemoPacket", readCDemoPacket);
-    p.on("CDemoFullPacket", function(data) {
-        //console.error(data);
-        //readCDemoStringTables(data.string_table);
-        readCDemoPacket(data.packet);
-    });
-    //this packet sets up our game event descriptors
-    p.on("CMsgSource1LegacyGameEventList", function(msg) {
-        //console.error(data);
-        var gameEventDescriptors = p.gameEventDescriptors;
-        for (var i = 0; i < msg.descriptors.length; i++) {
-            gameEventDescriptors[msg.descriptors[i].eventid] = msg.descriptors[i];
-        }
-    });
-    //p.on("CDemoStringTables", readCDemoStringTables);
-    //string tables may mutate over the lifetime of the replay.
-    //Therefore we listen for create/update events and modify the table as needed.
-    p.on("CSVCMsg_CreateStringTable", function(msg) {
-        readCreateStringTable(msg);
-        // Apply the updates to baseline state
-        if (msg.name === "instancebaseline") {
-            updateInstanceBaseline(p);
-        }
-    });
-    p.on("CSVCMsg_UpdateStringTable", function(msg) {
-        readUpdateStringTable(msg);
-        // Apply the updates to baseline state
-        if (msg.name === "instancebaseline") {
-            updateInstanceBaseline(p);
-        }
-    });
-    //contains some useful data for entity parsing
-    p.on("CSVCMsg_ServerInfo", function(msg) {
-        p.classIdSize = Math.log(msg.max_classes);
-    });
-    //stores mapping of entity class id to a string name
-    p.on("CDemoClassInfo", function(msg) {
-        msg.classes.forEach(function(c) {
-            p.classInfo[c.class_id] = c.network_name;
-        });
-        // update the instancebaseline
-        updateInstanceBaseline(p);
-    });
-    //TODO parse sendtable dem message
-    p.on("CDemoSendTables", function(msg) {
-        //extract data
-        var buf = new Buffer(msg.data.toBuffer());
-        var bs = new BitStream(buf);
-        //first bytes are a varuint
-        var size = bs.readVarUInt();
-        //next bytes are a CSVCMsg_FlattenedSerializer, decode with protobuf
-        var data = bs.readBuffer(size * 8);
-        data = dota.CSVCMsg_FlattenedSerializer.decode(data);
-        var fs = {
-            serializers: {},
-            //proto: data,
-            propertySerializers: {}
-        };
-        data.serializers.forEach(function(s) {
-            var name = data.symbols[s.serializer_name_sym];
-            var version = s.serializer_version;
-            if (!(name in fs.serializers)) {
-                fs.serializers[name] = {};
-            }
-            fs.serializers[name][version] = parseSerializer(s);
-        });
-        p.serializers = fs;
-    });
-    //TODO entities. huffman trees, property decoding?!
-    p.on("CSVCMsg_PacketEntities", function(msg) {
-        //packet entities are contained in a buffer in this packet
-        //we also need to readproperties
-        //where do baselines fit in?  instancebaseline stringtable?
-        var buf = new Buffer(msg.entity_data.toBuffer());
-        var bs = new BitStream(buf);
-        var index = -1;
-        return;
-        //read as many entries as the message says to
-        for (var i = 0; i < msg.updated_entries; i++) {
-            // Read the index delta from the buffer.
-            var delta = bs.readUBitVar();
-            index += delta + 1;
-            // Read the type of update based on two booleans.
-            // This appears to be backwards from source 1:
-            // true+true used to be "create", now appears to be false+true?
-            var updateType = "";
-            if (bs.readBoolean()) {
-                if (bs.readBoolean()) {
-                    //delete
-                    updateType = "D";
-                }
-                else {
-                    //XXX mystery type?
-                    updateType = "?";
-                }
-            }
-            else {
-                if (bs.readBoolean()) {
-                    //create
-                    updateType = "C";
-                }
-                else {
-                    //update
-                    updateType = "U";
-                }
-            }
-            // Proceed based on the update type
-            switch (updateType) {
-                case "C":
-                    // Create a new packetEntity.
-                    var classId = bs.readBits(p.server_info.classIdSize);
-                    // Get the associated class for this entity id.  This is a name (string).
-                    var className = p.classInfo[classId];
-                    // Get the associated serializer.  These are keyed by entity name.
-                    //TODO we need to create serializers
-                    var flatTbl = p.serializers[className][0];
-                    var pe = {
-                        index: index,
-                        classId: classId,
-                        className: className,
-                        flatTbl: flatTbl,
-                        properties: {},
-                    };
-                    // Skip the 10 serial bits for now.
-                    bs.readBits(10);
-                    // Read properties and set them in the packetEntity
-                    pe.properties = readEntityProperties(bs, pe.flatTbl);
-                    p.entities[index] = pe;
-                    break;
-                case "U":
-                    // Find the existing packetEntity
-                    var pe = p.entities[index];
-                    // Read properties and update the packetEntity
-                    var properties = readEntityProperties(bs, pe.flatTbl);
-                    for (var key in properties) {
-                        pe.properties[key] = properties[key];
-                    }
-                    break;
-                case "D":
-                    delete p.entities[index];
-                    break;
-            }
-        }
-        return;
     });
     return p;
     /**
@@ -431,7 +345,7 @@ var Parser = function(input, options) {
                     //lookup the name of the protobuf message to decode with
                     var name = demTypes[demType];
                     if (dota[name]) {
-                        if (listening(name)) {
+                        if (p.isListening(name)) {
                             dem.data = dota[name].decode(dem.data);
                             p.emit("*", dem.data, name);
                             p.emit(name, dem.data, name);
@@ -447,349 +361,6 @@ var Parser = function(input, options) {
                 return cb(err);
             });
         });
-    }
-    /**
-     * Processes a DEM message containing inner packets.
-     * This is the main structure that contains all other data types in the demo file.
-     **/
-    function readCDemoPacket(msg) {
-        /*
-        message CDemoPacket {
-        	optional int32 sequence_in = 1;
-        	optional int32 sequence_out_ack = 2;
-        	optional bytes data = 3;
-        }
-        */
-        var priorities = {
-            "CNETMsg_Tick": -10,
-            "CSVCMsg_CreateStringTable": -10,
-            "CSVCMsg_UpdateStringTable": -10,
-            "CNETMsg_SpawnGroup_Load": -10,
-            "CSVCMsg_PacketEntities": 5,
-            "CMsgSource1LegacyGameEvent": 10
-        };
-        //the inner data of a CDemoPacket is raw bits (no longer byte aligned!)
-        var packets = [];
-        //extract the native buffer from the ByteBuffer decoded by protobufjs
-        //rewrap it in a new Buffer to force usage of node Buffer wrapper rather than ArrayBuffer when in browser
-        var buf = new Buffer(msg.data.toBuffer());
-        //convert the buffer object into a bitstream so we can read bits from it
-        var bs = new BitStream(buf);
-        //read until less than 8 bits left
-        while (bs.limit - bs.offset >= 8) {
-            var t = bs.readUBitVar();
-            var s = bs.readVarUInt();
-            var d = bs.readBuffer(s * 8);
-            var pack = {
-                type: t,
-                size: s,
-                data: d,
-                position: packets.length
-            };
-            packets.push(pack);
-        }
-        //sort the inner packets by priority in order to ensure we parse dependent packets last
-        packets.sort(function(a, b) {
-            //we must use a stable sort here in order to preserve order of packets when possible (for example, string tables must be parsed in the correct order or their ids are no longer valid)
-            var p1 = priorities[packetTypes[a.type]] || 0;
-            var p2 = priorities[packetTypes[b.type]] || 0;
-            if (p1 === p2) {
-                return a.position - b.position;
-            }
-            return p1 - p2;
-        });
-        for (var i = 0; i < packets.length; i++) {
-            var packet = packets[i];
-            var packType = packet.type;
-            if (packType in packetTypes) {
-                //lookup the name of the proto message for this packet type
-                var name = packetTypes[packType];
-                if (dota[name]) {
-                    if (listening(name)) {
-                        packet.data = dota[name].decode(packet.data);
-                        p.emit("*", packet.data, name);
-                        p.emit(name, packet.data, name);
-                    }
-                }
-                else {
-                    console.error("no proto definition for packet name %s", name);
-                }
-            }
-            else {
-                console.error("no proto name for packet type %s", packType);
-            }
-        }
-    }
-    /**
-     * Given a flattened serializer, reads its properties and return an object.
-     **/
-    function parseSerializer(s) {
-        //TODO implement
-    }
-    /**
-     * Given a bitstream and a property table, return a mapping of properties
-     **/
-    function readEntityProperties(bs, table) {
-        //TODO implement this
-        /*
-	// Return type
-	result = make(map[string]interface{})
-
-	// Copy baseline if any
-	if baseline != nil {
-		for k, v := range baseline {
-			result[k] = v
-		}
-	}
-
-	// Create fieldpath
-	fieldPath := newFieldpath(ser, &huf)
-
-	// Get a list of the included fields
-	fieldPath.walk(r)
-
-	// iterate all the fields and set their corresponding values
-	for _, f := range fieldPath.fields {
-		if f.Field.Serializer.Decode == nil {
-			result[f.Name] = r.readVarUint32()
-			_debugfl(6, "Decoded default: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
-			continue
-		}
-
-		if f.Field.Serializer.DecodeContainer != nil {
-			result[f.Name] = f.Field.Serializer.DecodeContainer(r, f.Field)
-		} else {
-			result[f.Name] = f.Field.Serializer.Decode(r, f.Field)
-		}
-
-		_debugfl(6, "Decoded: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
-	}
-
-	return result
-    	*/
-        return;
-    }
-
-    function readCDemoStringTables(data) {
-        //rather than processing when we read this demo message, we want to create when we read the packet CSVCMsg_CreateStringTable
-        //this packet is just emitted as a state dump at intervals
-        return;
-    }
-
-    function readCreateStringTable(msg) {
-        //create a stringtable
-        //console.error(data);
-        //extract the native buffer from the string_data ByteBuffer, with the offset removed
-        var buf = new Buffer(msg.string_data.toBuffer());
-        if (msg.data_compressed) {
-            //decompress the string data with snappy
-            //early source 2 replays may use LZSS, we can detect this by reading the first four bytes of buffer
-            buf = snappy.uncompressSync(buf);
-        }
-        //pass the buffer and parse string table data from it
-        var items = parseStringTableData(buf, msg.num_entries, msg.user_data_fixed_size, msg.user_data_size);
-        //console.error(items);
-        //remove the buf and replace with items, which is a decoded version of it
-        msg.string_data = {};
-        // Insert the items into the table as an object
-        items.forEach(function(it) {
-            msg.string_data[it.index] = it;
-        });
-        p.stringTables.tablesByName[msg.name] = msg;
-        p.stringTables.tables.push(msg);
-    }
-
-    function readUpdateStringTable(msg) {
-        //update a string table
-        //retrieve table by id
-        var table = p.stringTables.tables[msg.table_id];
-        //extract native buffer
-        var buf = new Buffer(msg.string_data.toBuffer());
-        if (table) {
-            var items = parseStringTableData(buf, msg.num_changed_entries, table.user_data_fixed_size, table.user_data_size);
-            var string_data = table.string_data;
-            items.forEach(function(it) {
-                //console.error(it);
-                if (!string_data[it.index]) {
-                    //we don't have this item in the string table yet, add it
-                    string_data[it.index] = it;
-                }
-                else {
-                    //we're updating an existing item
-                    //only update key if the new key is not blank
-                    if (it.key) {
-                        //console.error("updating key %s->%s at index %s on %s, id %s", string_data[it.index].key, it.key, it.index, table.name, data.table_id);
-                        string_data[it.index].key = it.key;
-                        //string_data[it.index].key = [].concat(string_data[it.index].key).concat(it.key);
-                    }
-                    //only update value if the new item has a nonempty value buffer
-                    if (it.value.length) {
-                        //console.error("updating value length %s->%s at index %s on %s", string_data[it.index].value.length, it.value.length, it.index, table.name);
-                        string_data[it.index].value = it.value;
-                    }
-                }
-            });
-        }
-        else {
-            console.err("string table %s doesn't exist!", msg.table_id);
-            throw "string table doesn't exist!";
-        }
-    }
-    /**
-     * Parses a buffer of string table data and returns an array of decoded items
-     **/
-    function parseStringTableData(buf, num_entries, userDataFixedSize, userDataSize) {
-        // Some tables have no data
-        if (!buf.length) {
-            return [];
-        }
-        var items = [];
-        var bs = new BitStream(buf);
-        // Start with an index of -1.
-        // If the first item is at index 0 it will use a incr operation.
-        var index = -1;
-        var STRINGTABLE_KEY_HISTORY_SIZE = 32;
-        // Maintain a list of key history
-        // each entry is a string
-        var keyHistory = [];
-        // Loop through entries in the data structure
-        // Each entry is a tuple consisting of {index, key, value}
-        // Index can either be incremented from the previous position or overwritten with a given entry.
-        // Key may be omitted (will be represented here as "")
-        // Value may be omitted
-        for (var i = 0; i < num_entries; i++) {
-            var key = null;
-            var value = new Buffer(0);
-            // Read a boolean to determine whether the operation is an increment or
-            // has a fixed index position. A fixed index position of zero should be
-            // the last data in the buffer, and indicates that all data has been read.
-            var incr = bs.readBoolean();
-            if (incr) {
-                index += 1;
-            }
-            else {
-                index = bs.readVarUInt() + 1;
-            }
-            // Some values have keys, some don't.
-            var hasKey = bs.readBoolean();
-            if (hasKey) {
-                // Some entries use reference a position in the key history for
-                // part of the key. If referencing the history, read the position
-                // and size from the buffer, then use those to build the string
-                // combined with an extra string read (null terminated).
-                // Alternatively, just read the string.
-                var useHistory = bs.readBoolean();
-                if (useHistory) {
-                    var pos = bs.readBits(5);
-                    var size = bs.readBits(5);
-                    if (pos >= keyHistory.length) {
-                        //history doesn't have this position, just read
-                        key = bs.readNullTerminatedString();
-                    }
-                    else {
-                        var s = keyHistory[pos];
-                        if (size > s.length) {
-                            //our target size is longer than the key stored in history
-                            //pad the remaining size with a null terminated string from stream
-                            key = (s + bs.readNullTerminatedString());
-                        }
-                        else {
-                            //we only want a piece of the historical string, slice it out and read the null terminator
-                            key = s.slice(0, size) + bs.readNullTerminatedString();
-                        }
-                    }
-                }
-                else {
-                    //don't use the history, just read the string
-                    key = bs.readNullTerminatedString();
-                }
-                keyHistory.push(key);
-                if (keyHistory.length > STRINGTABLE_KEY_HISTORY_SIZE) {
-                    //drop the oldest key if we hit the cap
-                    keyHistory.shift();
-                }
-            }
-            // Some entries have a value.
-            var hasValue = bs.readBoolean();
-            if (hasValue) {
-                // Values can be either fixed size (with a size specified in
-                // bits during table creation, or have a variable size with
-                // a 14-bit prefixed size.
-                if (userDataFixedSize) {
-                    value = bs.readBuffer(userDataSize);
-                }
-                else {
-                    var valueSize = bs.readBits(14);
-                    //XXX mysterious 3 bits of data?
-                    bs.readBits(3);
-                    value = bs.readBuffer(valueSize * 8);
-                }
-            }
-            items.push({
-                index: index,
-                key: key,
-                value: value
-            });
-        }
-        //console.error(keyHistory, items, num_entries);
-        return items;
-    }
-    /**
-     * Given the current state of string tables and class info, updates the baseline state.
-     * This is state that is maintained throughout the parse and is used in parsing entities.
-     **/
-    function updateInstanceBaseline(p) {
-        //TODO implement
-        /*
-        // We can't update the instancebaseline until we have class info.
-	if !p.hasClassInfo {
-		return
-	}
-
-	stringTable, ok := p.stringTables.getTableByName("instancebaseline")
-	if !ok {
-		_debugf("skipping updateInstanceBaseline: no instancebaseline string table")
-		return
-	}
-
-	// Iterate through instancebaseline table items
-	for _, item := range stringTable.items {
-		// Get the class id for the string table item
-		classId, err := atoi32(item.key)
-		if err != nil {
-			_panicf("invalid instancebaseline key '%s': %s", item.key, err)
-		}
-
-		// Get the class name
-		className, ok := p.classInfo[classId]
-		if !ok {
-			_panicf("unable to find class info for instancebaseline key %d", classId)
-		}
-
-		// Create an entry in the map if needed
-		if _, ok := p.classBaseline[classId]; !ok {
-			p.classBaseline[classId] = make(map[string]interface{})
-		}
-
-		// Get the send table associated with the class.
-		sendTable, ok := p.sendTables.getTableByName(className)
-		if !ok {
-			_panicf("unable to find send table %s for instancebaseline key %d", className, classId)
-		}
-
-		// Parse the properties out of the string table buffer and store
-		// them as the class baseline in the Parser.
-		if len(item.value) > 0 {
-			p.classBaseline[classId] = readProperties(newReader(item.value), sendTable)
-		}
-	}
-	*/
-    }
-    /**
-     * Returns whether there is an attached listener for this message name.
-     **/
-    function listening(name) {
-        return p.listeners(name).length || p.listeners("*").length;
     }
 
     function readUInt8(cb) {
@@ -872,7 +443,7 @@ var Parser = function(input, options) {
 global.Parser = Parser;
 module.exports = Parser;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"./BitStream":1,"./build/protos.json":3,"./build/types.json":4,"./snappy":35,"async":5,"buffer":28,"events":8,"protobufjs":34,"stream":26}],3:[function(require,module,exports){
+},{"./build/protos.json":3,"./build/types.json":4,"./entities":5,"./packets":36,"./snappy":37,"./stringTables":38,"async":6,"buffer":29,"events":9,"protobufjs":35,"stream":27}],3:[function(require,module,exports){
 module.exports={
     "package": null,
     "options": {
@@ -55288,6 +54859,175 @@ module.exports={
   }
 }
 },{}],5:[function(require,module,exports){
+(function (Buffer){
+var BitStream = require('./BitStream');
+module.exports = function(p) {
+    var dota = p.dota;
+    //contains some useful data for entity parsing
+    p.on("CSVCMsg_ServerInfo", function(msg) {
+        p.classIdSize = Math.log(msg.max_classes);
+    });
+    //stores mapping of entity class id to a string name
+    p.on("CDemoClassInfo", function(msg) {
+        msg.classes.forEach(function(c) {
+            p.classInfo[c.class_id] = c.network_name;
+        });
+        // update the instancebaseline
+        p.updateInstanceBaseline();
+    });
+    p.on("CDemoSendTables", function(msg) {
+        //extract data
+        var buf = new Buffer(msg.data.toBuffer());
+        var bs = new BitStream(buf);
+        //first bytes are a varuint
+        var size = bs.readVarUInt();
+        //next bytes are a CSVCMsg_FlattenedSerializer, decode with protobuf
+        var data = bs.readBuffer(size * 8);
+        data = dota.CSVCMsg_FlattenedSerializer.decode(data);
+        var fs = {
+            serializers: {},
+            //proto: data,
+            propertySerializers: {}
+        };
+        data.serializers.forEach(function(s) {
+            var name = data.symbols[s.serializer_name_sym];
+            var version = s.serializer_version;
+            if (!(name in fs.serializers)) {
+                fs.serializers[name] = {};
+            }
+            fs.serializers[name][version] = parseSerializer(s);
+        });
+        p.serializers = fs;
+    });
+    //TODO entities. huffman trees, property decoding?!
+    p.on("CSVCMsg_PacketEntities", function(msg) {
+        //packet entities are contained in a buffer in this packet
+        //we also need to readproperties
+        //where do baselines fit in?  instancebaseline stringtable?
+        var buf = new Buffer(msg.entity_data.toBuffer());
+        var bs = new BitStream(buf);
+        var index = -1;
+        return;
+        //read as many entries as the message says to
+        for (var i = 0; i < msg.updated_entries; i++) {
+            // Read the index delta from the buffer.
+            var delta = bs.readUBitVar();
+            index += delta + 1;
+            // Read the type of update based on two booleans.
+            // This appears to be backwards from source 1:
+            // true+true used to be "create", now appears to be false+true?
+            var updateType = "";
+            if (bs.readBoolean()) {
+                if (bs.readBoolean()) {
+                    //delete
+                    updateType = "D";
+                }
+                else {
+                    //XXX mystery type?
+                    updateType = "?";
+                }
+            }
+            else {
+                if (bs.readBoolean()) {
+                    //create
+                    updateType = "C";
+                }
+                else {
+                    //update
+                    updateType = "U";
+                }
+            }
+            // Proceed based on the update type
+            switch (updateType) {
+                case "C":
+                    // Create a new packetEntity.
+                    var classId = bs.readBits(p.server_info.classIdSize);
+                    // Get the associated class for this entity id.  This is a name (string).
+                    var className = p.classInfo[classId];
+                    // Get the associated serializer.  These are keyed by entity name.
+                    //TODO we need to create serializers
+                    var flatTbl = p.serializers[className][0];
+                    var pe = {
+                        index: index,
+                        classId: classId,
+                        className: className,
+                        flatTbl: flatTbl,
+                        properties: {},
+                    };
+                    // Skip the 10 serial bits for now.
+                    bs.readBits(10);
+                    // Read properties and set them in the packetEntity
+                    pe.properties = readEntityProperties(bs, pe.flatTbl);
+                    p.entities[index] = pe;
+                    break;
+                case "U":
+                    // Find the existing packetEntity
+                    var pe = p.entities[index];
+                    // Read properties and update the packetEntity
+                    var properties = readEntityProperties(bs, pe.flatTbl);
+                    for (var key in properties) {
+                        pe.properties[key] = properties[key];
+                    }
+                    break;
+                case "D":
+                    delete p.entities[index];
+                    break;
+            }
+        }
+        return;
+    });
+    /**
+     * Given a flattened serializer, reads its properties and return an object.
+     **/
+    function parseSerializer(s) {
+        //TODO implement
+    }
+    /**
+     * Given a bitstream and a property table, return a mapping of properties
+     **/
+    function readEntityProperties(bs, table) {
+        //TODO implement this
+        /*
+	// Return type
+	result = make(map[string]interface{})
+
+	// Copy baseline if any
+	if baseline != nil {
+		for k, v := range baseline {
+			result[k] = v
+		}
+	}
+
+	// Create fieldpath
+	fieldPath := newFieldpath(ser, &huf)
+
+	// Get a list of the included fields
+	fieldPath.walk(r)
+
+	// iterate all the fields and set their corresponding values
+	for _, f := range fieldPath.fields {
+		if f.Field.Serializer.Decode == nil {
+			result[f.Name] = r.readVarUint32()
+			_debugfl(6, "Decoded default: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
+			continue
+		}
+
+		if f.Field.Serializer.DecodeContainer != nil {
+			result[f.Name] = f.Field.Serializer.DecodeContainer(r, f.Field)
+		} else {
+			result[f.Name] = f.Field.Serializer.Decode(r, f.Field)
+		}
+
+		_debugfl(6, "Decoded: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
+	}
+
+	return result
+    	*/
+        return;
+    }
+}
+}).call(this,require("buffer").Buffer)
+},{"./BitStream":1,"buffer":29}],6:[function(require,module,exports){
 (function (process,global){
 /*!
  * async
@@ -56513,11 +56253,11 @@ module.exports={
 }());
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":12}],6:[function(require,module,exports){
+},{"_process":13}],7:[function(require,module,exports){
 
-},{}],7:[function(require,module,exports){
-arguments[4][6][0].apply(exports,arguments)
-},{"dup":6}],8:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
+arguments[4][7][0].apply(exports,arguments)
+},{"dup":7}],9:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -56820,7 +56560,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -56845,12 +56585,12 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 module.exports = Array.isArray || function (arr) {
   return Object.prototype.toString.call(arr) == '[object Array]';
 };
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -57078,7 +56818,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":12}],12:[function(require,module,exports){
+},{"_process":13}],13:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -57170,10 +56910,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],13:[function(require,module,exports){
+},{}],14:[function(require,module,exports){
 module.exports = require("./lib/_stream_duplex.js")
 
-},{"./lib/_stream_duplex.js":14}],14:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":15}],15:[function(require,module,exports){
 // a duplex stream is just a stream that is both readable and writable.
 // Since JS doesn't have multiple prototypal inheritance, this class
 // prototypally inherits from Readable, and then parasitically from
@@ -57257,7 +56997,7 @@ function forEach (xs, f) {
   }
 }
 
-},{"./_stream_readable":16,"./_stream_writable":18,"core-util-is":19,"inherits":9,"process-nextick-args":20}],15:[function(require,module,exports){
+},{"./_stream_readable":17,"./_stream_writable":19,"core-util-is":20,"inherits":10,"process-nextick-args":21}],16:[function(require,module,exports){
 // a passthrough stream.
 // basically just the most minimal sort of Transform stream.
 // Every written chunk gets output as-is.
@@ -57286,7 +57026,7 @@ PassThrough.prototype._transform = function(chunk, encoding, cb) {
   cb(null, chunk);
 };
 
-},{"./_stream_transform":17,"core-util-is":19,"inherits":9}],16:[function(require,module,exports){
+},{"./_stream_transform":18,"core-util-is":20,"inherits":10}],17:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -58249,7 +57989,7 @@ function indexOf (xs, x) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":14,"_process":12,"buffer":28,"core-util-is":19,"events":8,"inherits":9,"isarray":10,"process-nextick-args":20,"string_decoder/":27,"util":7}],17:[function(require,module,exports){
+},{"./_stream_duplex":15,"_process":13,"buffer":29,"core-util-is":20,"events":9,"inherits":10,"isarray":11,"process-nextick-args":21,"string_decoder/":28,"util":8}],18:[function(require,module,exports){
 // a transform stream is a readable/writable stream where you do
 // something with the data.  Sometimes it's called a "filter",
 // but that's not a great name for it, since that implies a thing where
@@ -58448,7 +58188,7 @@ function done(stream, er) {
   return stream.push(null);
 }
 
-},{"./_stream_duplex":14,"core-util-is":19,"inherits":9}],18:[function(require,module,exports){
+},{"./_stream_duplex":15,"core-util-is":20,"inherits":10}],19:[function(require,module,exports){
 // A bit simpler than readable streams.
 // Implement an async ._write(chunk, cb), and it'll handle all
 // the drain event emission and buffering.
@@ -58970,7 +58710,7 @@ function endWritable(stream, state, cb) {
   state.ended = true;
 }
 
-},{"./_stream_duplex":14,"buffer":28,"core-util-is":19,"events":8,"inherits":9,"process-nextick-args":20,"util-deprecate":21}],19:[function(require,module,exports){
+},{"./_stream_duplex":15,"buffer":29,"core-util-is":20,"events":9,"inherits":10,"process-nextick-args":21,"util-deprecate":22}],20:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -59080,7 +58820,7 @@ function objectToString(o) {
   return Object.prototype.toString.call(o);
 }
 }).call(this,require("buffer").Buffer)
-},{"buffer":28}],20:[function(require,module,exports){
+},{"buffer":29}],21:[function(require,module,exports){
 (function (process){
 'use strict';
 module.exports = nextTick;
@@ -59097,7 +58837,7 @@ function nextTick(fn) {
 }
 
 }).call(this,require('_process'))
-},{"_process":12}],21:[function(require,module,exports){
+},{"_process":13}],22:[function(require,module,exports){
 (function (global){
 
 /**
@@ -59163,10 +58903,10 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 module.exports = require("./lib/_stream_passthrough.js")
 
-},{"./lib/_stream_passthrough.js":15}],23:[function(require,module,exports){
+},{"./lib/_stream_passthrough.js":16}],24:[function(require,module,exports){
 var Stream = (function (){
   try {
     return require('st' + 'ream'); // hack to fix a circular dependency issue when used with browserify
@@ -59180,13 +58920,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":14,"./lib/_stream_passthrough.js":15,"./lib/_stream_readable.js":16,"./lib/_stream_transform.js":17,"./lib/_stream_writable.js":18}],24:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":15,"./lib/_stream_passthrough.js":16,"./lib/_stream_readable.js":17,"./lib/_stream_transform.js":18,"./lib/_stream_writable.js":19}],25:[function(require,module,exports){
 module.exports = require("./lib/_stream_transform.js")
 
-},{"./lib/_stream_transform.js":17}],25:[function(require,module,exports){
+},{"./lib/_stream_transform.js":18}],26:[function(require,module,exports){
 module.exports = require("./lib/_stream_writable.js")
 
-},{"./lib/_stream_writable.js":18}],26:[function(require,module,exports){
+},{"./lib/_stream_writable.js":19}],27:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -59315,7 +59055,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":8,"inherits":9,"readable-stream/duplex.js":13,"readable-stream/passthrough.js":22,"readable-stream/readable.js":23,"readable-stream/transform.js":24,"readable-stream/writable.js":25}],27:[function(require,module,exports){
+},{"events":9,"inherits":10,"readable-stream/duplex.js":14,"readable-stream/passthrough.js":23,"readable-stream/readable.js":24,"readable-stream/transform.js":25,"readable-stream/writable.js":26}],28:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -59538,7 +59278,7 @@ function base64DetectIncompleteChar(buffer) {
   this.charLength = this.charReceived ? 3 : 0;
 }
 
-},{"buffer":28}],28:[function(require,module,exports){
+},{"buffer":29}],29:[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -61073,7 +60813,7 @@ function blitBuffer (src, dst, offset, length) {
   return i
 }
 
-},{"base64-js":29,"ieee754":30,"is-array":31}],29:[function(require,module,exports){
+},{"base64-js":30,"ieee754":31,"is-array":32}],30:[function(require,module,exports){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 ;(function (exports) {
@@ -61199,7 +60939,7 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	exports.fromByteArray = uint8ToBase64
 }(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-},{}],30:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = nBytes * 8 - mLen - 1
@@ -61285,7 +61025,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],31:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 
 /**
  * isArray
@@ -61320,7 +61060,7 @@ module.exports = isArray || function (val) {
   return !! val && '[object Array]' == str.call(val);
 };
 
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 /*
  Copyright 2013-2014 Daniel Wirtz <dcode@dcode.io>
 
@@ -65034,7 +64774,7 @@ module.exports = isArray || function (val) {
     return ByteBuffer;
 });
 
-},{"long":33}],33:[function(require,module,exports){
+},{"long":34}],34:[function(require,module,exports){
 /*
  Copyright 2013 Daniel Wirtz <dcode@dcode.io>
  Copyright 2009 The Closure Library Authors. All Rights Reserved.
@@ -65980,7 +65720,7 @@ module.exports = isArray || function (val) {
 
 })(this);
 
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 (function (process){
 /*
  Copyright 2013 Daniel Wirtz <dcode@dcode.io>
@@ -71294,7 +71034,102 @@ module.exports = isArray || function (val) {
 });
 
 }).call(this,require('_process'))
-},{"_process":12,"bytebuffer":32,"fs":6,"path":11}],35:[function(require,module,exports){
+},{"_process":13,"bytebuffer":33,"fs":7,"path":12}],36:[function(require,module,exports){
+(function (Buffer){
+var BitStream = require('./BitStream');
+module.exports = function(p) {
+    var dota = p.dota;
+    var packetTypes = p.types.packets;
+    p.on("CDemoSignonPacket", readCDemoPacket);
+    p.on("CDemoPacket", readCDemoPacket);
+    p.on("CDemoFullPacket", function(data) {
+        //console.error(data);
+        //readCDemoStringTables(data.string_table);
+        readCDemoPacket(data.packet);
+    });
+    //this packet sets up our game event descriptors
+    p.on("CMsgSource1LegacyGameEventList", function(msg) {
+        //console.error(data);
+        var gameEventDescriptors = p.gameEventDescriptors;
+        for (var i = 0; i < msg.descriptors.length; i++) {
+            gameEventDescriptors[msg.descriptors[i].eventid] = msg.descriptors[i];
+        }
+    });
+    /**
+     * Processes a DEM message containing inner packets.
+     * This is the main structure that contains all other data types in the demo file.
+     **/
+    function readCDemoPacket(msg) {
+        /*
+        message CDemoPacket {
+        	optional int32 sequence_in = 1;
+        	optional int32 sequence_out_ack = 2;
+        	optional bytes data = 3;
+        }
+        */
+        var priorities = {
+            "CNETMsg_Tick": -10,
+            "CSVCMsg_CreateStringTable": -10,
+            "CSVCMsg_UpdateStringTable": -10,
+            "CNETMsg_SpawnGroup_Load": -10,
+            "CSVCMsg_PacketEntities": 5,
+            "CMsgSource1LegacyGameEvent": 10
+        };
+        //the inner data of a CDemoPacket is raw bits (no longer byte aligned!)
+        var packets = [];
+        //extract the native buffer from the ByteBuffer decoded by protobufjs
+        //rewrap it in a new Buffer to force usage of node Buffer wrapper rather than ArrayBuffer when in browser
+        var buf = new Buffer(msg.data.toBuffer());
+        //convert the buffer object into a bitstream so we can read bits from it
+        var bs = new BitStream(buf);
+        //read until less than 8 bits left
+        while (bs.limit - bs.offset >= 8) {
+            var t = bs.readUBitVar();
+            var s = bs.readVarUInt();
+            var d = bs.readBuffer(s * 8);
+            var pack = {
+                type: t,
+                size: s,
+                data: d,
+                position: packets.length
+            };
+            packets.push(pack);
+        }
+        //sort the inner packets by priority in order to ensure we parse dependent packets last
+        packets.sort(function(a, b) {
+            //we must use a stable sort here in order to preserve order of packets when possible (for example, string tables must be parsed in the correct order or their ids are no longer valid)
+            var p1 = priorities[packetTypes[a.type]] || 0;
+            var p2 = priorities[packetTypes[b.type]] || 0;
+            if (p1 === p2) {
+                return a.position - b.position;
+            }
+            return p1 - p2;
+        });
+        for (var i = 0; i < packets.length; i++) {
+            var packet = packets[i];
+            var packType = packet.type;
+            if (packType in packetTypes) {
+                //lookup the name of the proto message for this packet type
+                var name = packetTypes[packType];
+                if (dota[name]) {
+                    if (p.isListening(name)) {
+                        packet.data = dota[name].decode(packet.data);
+                        p.emit("*", packet.data, name);
+                        p.emit(name, packet.data, name);
+                    }
+                }
+                else {
+                    console.error("no proto definition for packet name %s", name);
+                }
+            }
+            else {
+                console.error("no proto name for packet type %s", packType);
+            }
+        }
+    }
+}
+}).call(this,require("buffer").Buffer)
+},{"./BitStream":1,"buffer":29}],37:[function(require,module,exports){
 (function (Buffer){
 /**
  * A pure JS implementation of Snappy decompression, for use in the browser
@@ -71388,4 +71223,190 @@ module.exports = {
     }
 };
 }).call(this,require("buffer").Buffer)
-},{"buffer":28}]},{},[2]);
+},{"buffer":29}],38:[function(require,module,exports){
+(function (Buffer){
+var BitStream = require('./BitStream');
+var snappy = require('./snappy');
+module.exports = function(p){
+     //string tables may mutate over the lifetime of the replay.
+    //Therefore we listen for create/update events and modify the table as needed.
+    //p.on("CDemoStringTables", readCDemoStringTables);
+    p.on("CSVCMsg_CreateStringTable", readCreateStringTable);
+    p.on("CSVCMsg_UpdateStringTable", readUpdateStringTable);
+    
+    
+    function readCDemoStringTables(data) {
+        //rather than processing when we read this demo message, we want to create when we read the packet CSVCMsg_CreateStringTable
+        //this packet is just emitted as a state dump at intervals
+        return;
+    }
+
+    function readCreateStringTable(msg) {
+        //create a stringtable
+        //console.error(data);
+        //extract the native buffer from the string_data ByteBuffer, with the offset removed
+        var buf = new Buffer(msg.string_data.toBuffer());
+        if (msg.data_compressed) {
+            //decompress the string data with snappy
+            //early source 2 replays may use LZSS, we can detect this by reading the first four bytes of buffer
+            buf = snappy.uncompressSync(buf);
+        }
+        //pass the buffer and parse string table data from it
+        var items = parseStringTableData(buf, msg.num_entries, msg.user_data_fixed_size, msg.user_data_size);
+        //console.error(items);
+        //remove the buf and replace with items, which is a decoded version of it
+        msg.string_data = {};
+        // Insert the items into the table as an object
+        items.forEach(function(it) {
+            msg.string_data[it.index] = it;
+        });
+        p.stringTables.tablesByName[msg.name] = msg;
+        p.stringTables.tables.push(msg);
+        // Apply the updates to baseline state
+        if (msg.name === "instancebaseline") {
+            p.updateInstanceBaseline();
+        }
+    }
+
+    function readUpdateStringTable(msg) {
+        //update a string table
+        //retrieve table by id
+        var table = p.stringTables.tables[msg.table_id];
+        //extract native buffer
+        var buf = new Buffer(msg.string_data.toBuffer());
+        if (table) {
+            var items = parseStringTableData(buf, msg.num_changed_entries, table.user_data_fixed_size, table.user_data_size);
+            var string_data = table.string_data;
+            items.forEach(function(it) {
+                //console.error(it);
+                if (!string_data[it.index]) {
+                    //we don't have this item in the string table yet, add it
+                    string_data[it.index] = it;
+                }
+                else {
+                    //we're updating an existing item
+                    //only update key if the new key is not blank
+                    if (it.key) {
+                        //console.error("updating key %s->%s at index %s on %s, id %s", string_data[it.index].key, it.key, it.index, table.name, data.table_id);
+                        string_data[it.index].key = it.key;
+                        //string_data[it.index].key = [].concat(string_data[it.index].key).concat(it.key);
+                    }
+                    //only update value if the new item has a nonempty value buffer
+                    if (it.value.length) {
+                        //console.error("updating value length %s->%s at index %s on %s", string_data[it.index].value.length, it.value.length, it.index, table.name);
+                        string_data[it.index].value = it.value;
+                    }
+                }
+            });
+            // Apply the updates to baseline state
+            if (msg.name === "instancebaseline") {
+                p.updateInstanceBaseline();
+            }
+        }
+        else {
+            console.err("string table %s doesn't exist!", msg.table_id);
+            throw "string table doesn't exist!";
+        }
+    }
+    /**
+     * Parses a buffer of string table data and returns an array of decoded items
+     **/
+    function parseStringTableData(buf, num_entries, userDataFixedSize, userDataSize) {
+        // Some tables have no data
+        if (!buf.length) {
+            return [];
+        }
+        var items = [];
+        var bs = new BitStream(buf);
+        // Start with an index of -1.
+        // If the first item is at index 0 it will use a incr operation.
+        var index = -1;
+        var STRINGTABLE_KEY_HISTORY_SIZE = 32;
+        // Maintain a list of key history
+        // each entry is a string
+        var keyHistory = [];
+        // Loop through entries in the data structure
+        // Each entry is a tuple consisting of {index, key, value}
+        // Index can either be incremented from the previous position or overwritten with a given entry.
+        // Key may be omitted (will be represented here as "")
+        // Value may be omitted
+        for (var i = 0; i < num_entries; i++) {
+            var key = null;
+            var value = new Buffer(0);
+            // Read a boolean to determine whether the operation is an increment or
+            // has a fixed index position. A fixed index position of zero should be
+            // the last data in the buffer, and indicates that all data has been read.
+            var incr = bs.readBoolean();
+            if (incr) {
+                index += 1;
+            }
+            else {
+                index = bs.readVarUInt() + 1;
+            }
+            // Some values have keys, some don't.
+            var hasKey = bs.readBoolean();
+            if (hasKey) {
+                // Some entries use reference a position in the key history for
+                // part of the key. If referencing the history, read the position
+                // and size from the buffer, then use those to build the string
+                // combined with an extra string read (null terminated).
+                // Alternatively, just read the string.
+                var useHistory = bs.readBoolean();
+                if (useHistory) {
+                    var pos = bs.readBits(5);
+                    var size = bs.readBits(5);
+                    if (pos >= keyHistory.length) {
+                        //history doesn't have this position, just read
+                        key = bs.readNullTerminatedString();
+                    }
+                    else {
+                        var s = keyHistory[pos];
+                        if (size > s.length) {
+                            //our target size is longer than the key stored in history
+                            //pad the remaining size with a null terminated string from stream
+                            key = (s + bs.readNullTerminatedString());
+                        }
+                        else {
+                            //we only want a piece of the historical string, slice it out and read the null terminator
+                            key = s.slice(0, size) + bs.readNullTerminatedString();
+                        }
+                    }
+                }
+                else {
+                    //don't use the history, just read the string
+                    key = bs.readNullTerminatedString();
+                }
+                keyHistory.push(key);
+                if (keyHistory.length > STRINGTABLE_KEY_HISTORY_SIZE) {
+                    //drop the oldest key if we hit the cap
+                    keyHistory.shift();
+                }
+            }
+            // Some entries have a value.
+            var hasValue = bs.readBoolean();
+            if (hasValue) {
+                // Values can be either fixed size (with a size specified in
+                // bits during table creation, or have a variable size with
+                // a 14-bit prefixed size.
+                if (userDataFixedSize) {
+                    value = bs.readBuffer(userDataSize);
+                }
+                else {
+                    var valueSize = bs.readBits(14);
+                    //XXX mysterious 3 bits of data?
+                    bs.readBits(3);
+                    value = bs.readBuffer(valueSize * 8);
+                }
+            }
+            items.push({
+                index: index,
+                key: key,
+                value: value
+            });
+        }
+        //console.error(keyHistory, items, num_entries);
+        return items;
+    }
+}
+}).call(this,require("buffer").Buffer)
+},{"./BitStream":1,"./snappy":37,"buffer":29}]},{},[2]);
