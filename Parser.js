@@ -43,6 +43,9 @@ var Parser = function(input, options) {
     p.serializers = {};
     p.entities = {};
     p.classIdSize = 0;
+    /**
+     * Begins parsing the replay.
+     **/
     p.start = function start(cb) {
         input.on('end', function() {
             stop = true;
@@ -76,7 +79,6 @@ var Parser = function(input, options) {
         //don't stop on CDemoStop since some replays have CDemoGameInfo after it
         //stop = true;
     });
-    //p.on("CDemoStringTables", readCDemoStringTables);
     p.on("CDemoSignonPacket", readCDemoPacket);
     p.on("CDemoPacket", readCDemoPacket);
     p.on("CDemoFullPacket", function(data) {
@@ -92,20 +94,21 @@ var Parser = function(input, options) {
             gameEventDescriptors[msg.descriptors[i].eventid] = msg.descriptors[i];
         }
     });
+    //p.on("CDemoStringTables", readCDemoStringTables);
     //string tables may mutate over the lifetime of the replay.
     //Therefore we listen for create/update events and modify the table as needed.
     p.on("CSVCMsg_CreateStringTable", function(msg) {
         readCreateStringTable(msg);
         // Apply the updates to baseline state
         if (msg.name === "instancebaseline") {
-            updateInstanceBaseline();
+            updateInstanceBaseline(p);
         }
     });
     p.on("CSVCMsg_UpdateStringTable", function(msg) {
         readUpdateStringTable(msg);
         // Apply the updates to baseline state
         if (msg.name === "instancebaseline") {
-            updateInstanceBaseline();
+            updateInstanceBaseline(p);
         }
     });
     //contains some useful data for entity parsing
@@ -118,7 +121,7 @@ var Parser = function(input, options) {
             p.classInfo[c.class_id] = c.network_name;
         });
         // update the instancebaseline
-        updateInstanceBaseline();
+        updateInstanceBaseline(p);
     });
     //TODO parse sendtable dem message
     p.on("CDemoSendTables", function(msg) {
@@ -138,7 +141,7 @@ var Parser = function(input, options) {
         data.serializers.forEach(function(s) {
             var name = data.symbols[s.serializer_name_sym];
             var version = s.serializer_version;
-            if (!name in fs.serializers){
+            if (!(name in fs.serializers)) {
                 fs.serializers[name] = {};
             }
             fs.serializers[name][version] = parseSerializer(s);
@@ -411,56 +414,11 @@ var Parser = function(input, options) {
     	*/
         return;
     }
-    /**
-     * Given the current state of string tables and class info, updates the baseline state.
-     * This is state that is maintained throughout the parse and is used in parsing entities.
-     **/
-    function updateInstanceBaseline() {
-        //TODO implement
-        /*
-        // We can't update the instancebaseline until we have class info.
-	if !p.hasClassInfo {
-		return
-	}
 
-	stringTable, ok := p.stringTables.getTableByName("instancebaseline")
-	if !ok {
-		_debugf("skipping updateInstanceBaseline: no instancebaseline string table")
-		return
-	}
-
-	// Iterate through instancebaseline table items
-	for _, item := range stringTable.items {
-		// Get the class id for the string table item
-		classId, err := atoi32(item.key)
-		if err != nil {
-			_panicf("invalid instancebaseline key '%s': %s", item.key, err)
-		}
-
-		// Get the class name
-		className, ok := p.classInfo[classId]
-		if !ok {
-			_panicf("unable to find class info for instancebaseline key %d", classId)
-		}
-
-		// Create an entry in the map if needed
-		if _, ok := p.classBaseline[classId]; !ok {
-			p.classBaseline[classId] = make(map[string]interface{})
-		}
-
-		// Get the send table associated with the class.
-		sendTable, ok := p.sendTables.getTableByName(className)
-		if !ok {
-			_panicf("unable to find send table %s for instancebaseline key %d", className, classId)
-		}
-
-		// Parse the properties out of the string table buffer and store
-		// them as the class baseline in the Parser.
-		if len(item.value) > 0 {
-			p.classBaseline[classId] = readProperties(newReader(item.value), sendTable)
-		}
-	}
-	*/
+    function readCDemoStringTables(data) {
+        //rather than processing when we read this demo message, we want to create when we read the packet CSVCMsg_CreateStringTable
+        //this packet is just emitted as a state dump at intervals
+        return;
     }
 
     function readCreateStringTable(msg) {
@@ -622,16 +580,61 @@ var Parser = function(input, options) {
         return items;
     }
     /**
+     * Given the current state of string tables and class info, updates the baseline state.
+     * This is state that is maintained throughout the parse and is used in parsing entities.
+     **/
+    function updateInstanceBaseline(p) {
+        //TODO implement
+        /*
+        // We can't update the instancebaseline until we have class info.
+	if !p.hasClassInfo {
+		return
+	}
+
+	stringTable, ok := p.stringTables.getTableByName("instancebaseline")
+	if !ok {
+		_debugf("skipping updateInstanceBaseline: no instancebaseline string table")
+		return
+	}
+
+	// Iterate through instancebaseline table items
+	for _, item := range stringTable.items {
+		// Get the class id for the string table item
+		classId, err := atoi32(item.key)
+		if err != nil {
+			_panicf("invalid instancebaseline key '%s': %s", item.key, err)
+		}
+
+		// Get the class name
+		className, ok := p.classInfo[classId]
+		if !ok {
+			_panicf("unable to find class info for instancebaseline key %d", classId)
+		}
+
+		// Create an entry in the map if needed
+		if _, ok := p.classBaseline[classId]; !ok {
+			p.classBaseline[classId] = make(map[string]interface{})
+		}
+
+		// Get the send table associated with the class.
+		sendTable, ok := p.sendTables.getTableByName(className)
+		if !ok {
+			_panicf("unable to find send table %s for instancebaseline key %d", className, classId)
+		}
+
+		// Parse the properties out of the string table buffer and store
+		// them as the class baseline in the Parser.
+		if len(item.value) > 0 {
+			p.classBaseline[classId] = readProperties(newReader(item.value), sendTable)
+		}
+	}
+	*/
+    }
+    /**
      * Returns whether there is an attached listener for this message name.
      **/
     function listening(name) {
         return p.listeners(name).length || p.listeners("*").length;
-    }
-
-    function readCDemoStringTables(data) {
-        //rather than processing when we read this demo message, we want to create when we read the packet CSVCMsg_CreateStringTable
-        //this packet is just emitted as a state dump at intervals
-        return;
     }
 
     function readUInt8(cb) {

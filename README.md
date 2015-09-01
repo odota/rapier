@@ -14,6 +14,7 @@ API
 * Rapier is designed to offer a very simple API.
 * Users simply attach event listeners with the names of the protobuf messages they're interested in.
 * Properties such as string tables, game event descriptors, and id->string mappings are exposed to allow the user to interpret the message.
+* Event names are listed under "dems" and "packets" in `build/types.json`, or refer to the original .proto files in `proto`.
 
 Event Overview
 ----

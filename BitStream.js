@@ -1,7 +1,7 @@
 /**
  * Converts a given buffer of bytes to a stream of bits and provides methods for reading individual bits (non-aligned reads)
  **/
-var Long = require('long');
+//var Long = require('long');
 //accepts a native buffer object
 var BitStream = function(buf) {
     this.offset = 0;
@@ -48,6 +48,8 @@ BitStream.prototype.readBits = function(n) {
         //this means in practice we may have difficulty with n >= 25 bits (since offset can be up to 7)
         //can't fit that into a 32 bit int unless we use JS Long, which is slow
         console.error(bitsToRead);
+        throw "requires long to read >32 bits from bitstream!"
+        /*
         //64 bit shifting, we only need this if our operations cant fit into 32 bits
         value = new Long();
         //console.error(bits, this.offset, bitOffset, bitsToRead,bytesToRead);
@@ -64,6 +66,7 @@ BitStream.prototype.readBits = function(n) {
         //shift a single 1 over, subtract 1 to form a bit mask 
         value = value.and((1 << n) - 1);
         value = value.toInt();
+        */
     }
     this.offset += n;
     return value;
@@ -104,6 +107,9 @@ BitStream.prototype.readNullTerminatedString = function() {
     }
     //console.log(str);
     return str;
+};
+BitStream.prototype.readUInt8 = function(){
+    return this.readBits(8);
 };
 BitStream.prototype.readVarUInt = function() {
     var max = 32;
