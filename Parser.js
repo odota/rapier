@@ -22,14 +22,6 @@ dota["CDemoSignonPacket"] = dota["CDemoPacket"];
 var Parser = function(input, options) {
     //if a JS ArrayBuffer, convert to native node buffer
     if (input.byteLength) {
-        /*
-        var buffer = new Buffer(input.byteLength);
-        var view = new Uint8Array(input);
-        for (var i = 0; i < buffer.length; i++) {
-            buffer[i] = view[i];
-        }
-        input = buffer;
-        */
         input = new Buffer(input);
     }
     //wrap a passed buffer in a stream

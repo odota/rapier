@@ -56,9 +56,11 @@
                 console.log(data);
                 document.getElementById("log").innerHTML += JSON.stringify(data)+"<br>";
             });
+            /*
             p.on("*", function(data) {
                 count += 1;
             });
+            */
             console.time('parse');
             p.start(function(err) {
                 if (err) {
