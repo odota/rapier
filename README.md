@@ -3,6 +3,8 @@ A JavaScript Dota 2 (Source 2) replay parsing library.
 
 It throws (exceptions) if incorrectly used. :)
 
+[![npm version](https://badge.fury.io/js/rapier.svg)](http://badge.fury.io/js/rapier)
+
 Why JavaScript?
 ----
 * Can be used for both server-side and in-browser parsing (isomorphic design)
