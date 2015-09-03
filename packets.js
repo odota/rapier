@@ -49,6 +49,7 @@ module.exports = function(p) {
             var t = bs.readUBitVar();
             var s = bs.readVarUInt();
             var d = bs.readBuffer(s * 8);
+            var name = packetTypes[t];
             var pack = {
                 type: t,
                 size: s,

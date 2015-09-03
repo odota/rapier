@@ -25,6 +25,7 @@ module.exports = function(p) {
         //three properties, serializers, symbols, and fields
         var fields = data.fields;
         //console.log(Object.keys(data));
+        //create a new flattened serializer
         var fs = {
             serializers: {},
             //proto: data,
@@ -77,7 +78,6 @@ module.exports = function(p) {
         });
         p.serializers = fs;
     });
-    //TODO entities. huffman trees, property decoding?!
     p.on("CSVCMsg_PacketEntities", function(msg) {
         //packet entities are contained in a buffer in this packet
         var buf = new Buffer(msg.entity_data.toBuffer());
@@ -121,25 +121,26 @@ module.exports = function(p) {
                     // Get the associated class for this entity id.  This is a name (string).
                     var className = p.classInfo[classId];
                     // Get the associated serializer.  These are keyed by entity name.
-                    var flatTbl = p.serializers[className][0];
+                    //currently using version 0 for everything
+                    var dt = p.serializers[className][0];
                     var pe = {
                         index: index,
                         classId: classId,
                         className: className,
-                        flatTbl: flatTbl,
+                        dt: dt,
                         properties: {},
                     };
                     // Skip the 10 serial bits for now.
                     bs.readBits(10);
                     // Read properties and set them in the packetEntity
-                    pe.properties = readEntityProperties(bs, pe.flatTbl);
+                    pe.properties = readEntityProperties(bs, pe.dt);
                     p.entities[index] = pe;
                     break;
                 case "U":
                     // Find the existing packetEntity
                     var pe = p.entities[index];
                     // Read properties and update the packetEntity
-                    var properties = readEntityProperties(bs, pe.flatTbl);
+                    var properties = readEntityProperties(bs, pe.dt);
                     for (var key in properties) {
                         pe.properties[key] = properties[key];
                     }
@@ -179,29 +180,31 @@ module.exports = function(p) {
 		return
 	}
 	*/
-	function decodeFloat(bs, f){
-	    //TODO special case if field.encoder="coord"
-	    if (!f.bitCount){
-	        //decode as float with certain number of bits
-	        return decodeBitFloat(bs, f);
-	    }
-	    else{
-	        //decode as 32 bit varint
-	        return bs.readVarUInt();
-	    }
-	}
-	function decodeBitFloat(bs, f){
-	    var bits = bs.readBits(f.bitCount);
-	    //convert the int32 represented here to a float
-	    //TODO read these bits as a 32 bit float
-	    //we need to write the 32bit int to a 4 byte buffer, then we can interpret it as a float
-	    console.error(bits);
-	    throw "stop";
-	    return;
-	}
-	function decodeUnsigned(bs, f){
-	    //TODO handle weird cases with unsigned int properties
-	    /*
+        function decodeFloat(bs, f) {
+            //TODO special case if field.encoder="coord"
+            if (!f.bitCount) {
+                //decode as float with certain number of bits
+                return decodeBitFloat(bs, f);
+            }
+            else {
+                //decode as 32 bit varint
+                return bs.readVarUInt();
+            }
+        }
+
+        function decodeBitFloat(bs, f) {
+            var bits = bs.readBits(f.bitCount);
+            //convert the int32 represented here to a float
+            //TODO read these bits as a 32 bit float
+            //we need to write the 32bit int to a 4 byte buffer, then we can interpret it as a float
+            console.error(bits);
+            throw "stop";
+            return;
+        }
+
+        function decodeUnsigned(bs, f) {
+            //TODO handle weird cases with unsigned int properties
+            /*
 	switch (f.encoder) {
 	case "fixed64":
 		return decodeFixed64(r, f)
@@ -209,37 +212,44 @@ module.exports = function(p) {
 		return decodeLeUint64(r, f)
 	}
 	*/
-	return bs.readVarUInt64();
-	}
-	function decodeSigned(bs, f){
-	    return bs.readVarInt();
-	}
-	function decodeString(bs, f){
-	    return bs.readNullTerminatedString();
-	}
-	function decodeFVector(bs, f){
-	    //TODO
-	    /*
+            return bs.readVarUInt64();
+        }
+
+        function decodeSigned(bs, f) {
+            return bs.readVarInt();
+        }
+
+        function decodeString(bs, f) {
+            return bs.readNullTerminatedString();
+        }
+
+        function decodeFVector(bs, f) {
+            //TODO
+            /*
 	    // Parse specific encoders
 	switch f.Encoder {
 	case "normal":
 		return r.read3BitNormal()
 	}
 	*/
-	return [decodeFloat(bs, f), decodeFloat(bs, f), decodeFloat(bs, f)];
-	}
-	function decodeBoolean(bs, f){
-	    return bs.readBoolean();
-	}
-	function decodeQuantized(bs, f){
-	    //TODO implement this instead of just skipping
-	    return bs.readBits(f.bitCount);
-	}
-	function decodeComponent(bs, f){
-	    return bs.readBits(1);
-	}
-	function decodeQAngle(bs, f){
-	    /*
+            return [decodeFloat(bs, f), decodeFloat(bs, f), decodeFloat(bs, f)];
+        }
+
+        function decodeBoolean(bs, f) {
+            return bs.readBoolean();
+        }
+
+        function decodeQuantized(bs, f) {
+            //TODO implement this instead of just skipping
+            return bs.readBits(f.bitCount);
+        }
+
+        function decodeComponent(bs, f) {
+            return bs.readBits(1);
+        }
+
+        function decodeQAngle(bs, f) {
+            /*
 	    	ret := [3]float32{0.0, 0.0, 0.0}
 
 	// Parse specific encoders
@@ -286,10 +296,11 @@ module.exports = function(p) {
 	_panicf("No valid encoding determined")
 	return ret
 	*/
-	}
-	function decodeHandle(bs, f){
-	    return bs.readVarUInt();
-	}
+        }
+
+        function decodeHandle(bs, f) {
+            return bs.readVarUInt();
+        }
         var decoder = serializer.decoder;
         //each decode function takes a bitstream to read from and the field properties
         //try to use field.type to determine the serializer to use
@@ -374,20 +385,20 @@ module.exports = function(p) {
 		return ps
 	}
 	*/
-//matches the vector regex
-/*
-	if match := matchVector.FindStringSubmatch(name); match != nil {
-		ps := &PropertySerializer{
-			Decode:          decoder,
-			DecodeContainer: decoderContainer,
-			IsArray:         true,
-			Length:          uint32(128),
-			ArraySerializer: &PropertySerializer{},
-		}
-		pst.Serializers[name] = ps
-		return ps
-	}
-*/
+        //matches the vector regex
+        /*
+        	if match := matchVector.FindStringSubmatch(name); match != nil {
+        		ps := &PropertySerializer{
+        			Decode:          decoder,
+        			DecodeContainer: decoderContainer,
+        			IsArray:         true,
+        			Length:          uint32(128),
+        			ArraySerializer: &PropertySerializer{},
+        		}
+        		pst.Serializers[name] = ps
+        		return ps
+        	}
+        */
         /*
 	if name == "C_DOTA_ItemStockInfo[MAX_ITEM_STOCKS]" {
 		typeName := "C_DOTA_ItemStockInfo"
@@ -468,17 +479,27 @@ module.exports = function(p) {
     /**
      * Given a bitstream and a dt for this entity class, return a mapping of properties
      * The dt contains the information about the fields in this entity, and includes methods to decode the raw bits
-     * The list of fields is huffman-encoded at the start of the bitstream
+     * The list of fields is encoded at the start of the bitstream
+     * We interpret it by reading a bit at a time from bitstream and walking the huffman tree based on the bit
+     * At each node, we perform a fieldpath operation
+     * If we haven't ended our walk, we add a field
      * The rest of the stream contains the encoded properties.
      **/
-    function readEntityProperties(bs, dtr) {
+    function readEntityProperties(bs, dt) {
         //TODO implement this
         var result = {};
-        //implement the huffman tree as an array (stored like a heap)
-        var fieldpath = [];
-        //walk the given huffman tree and return a list of properties
-        //var fields = walk(fieldpath);
-        
+        //create a new fieldpath object
+        var fieldpath = {
+            parent: dt,
+            fields: [],
+            //start with a -1 index for the path
+            indexes: [-1],
+            tree: huf,
+            finished: false
+        };
+        //walk the huffman tree while reading from bitstream and set the array of fields 
+        //each field is an object with name and dt_field
+        fieldpath.fields = walk(bs, fieldpath);
         /*
 	// Return type
 	result = NewProperties()
@@ -515,7 +536,68 @@ module.exports = function(p) {
     /**
      * Given an array of counts, builds a huffman tree
      **/
-    function buildTree(counts){
+    function buildTree(counts) {
         //TODO implement
     }
+
+    function walk(bs, fieldpath) {}
+    // Global fieldpath lookup array
+    //name, function, weight
+    /*
+var fieldpathOperations = [
+	{"PlusOne", PlusOne, 36271},
+	{"PlusTwo", PlusTwo, 10334},
+	{"PlusThree", PlusThree, 1375},
+	{"PlusFour", PlusFour, 646},
+	{"PlusN", PlusN, 4128},
+	{"PushOneLeftDeltaZeroRightZero", PushOneLeftDeltaZeroRightZero, 35},
+	{"PushOneLeftDeltaZeroRightNonZero", PushOneLeftDeltaZeroRightNonZero, 3},
+	{"PushOneLeftDeltaOneRightZero", PushOneLeftDeltaOneRightZero, 521},
+	{"PushOneLeftDeltaOneRightNonZero", PushOneLeftDeltaOneRightNonZero, 2942},
+	{"PushOneLeftDeltaNRightZero", PushOneLeftDeltaNRightZero, 560},
+	{"PushOneLeftDeltaNRightNonZero", PushOneLeftDeltaNRightNonZero, 471},
+	{"PushOneLeftDeltaNRightNonZeroPack6Bits", PushOneLeftDeltaNRightNonZeroPack6Bits, 10530},
+	{"PushOneLeftDeltaNRightNonZeroPack8Bits", PushOneLeftDeltaNRightNonZeroPack8Bits, 251},
+	{"PushTwoLeftDeltaZero", PushTwoLeftDeltaZero, 0},
+	{"PushTwoPack5LeftDeltaZero", PushTwoPack5LeftDeltaZero, 0},
+	{"PushThreeLeftDeltaZero", PushThreeLeftDeltaZero, 0},
+	{"PushThreePack5LeftDeltaZero", PushThreePack5LeftDeltaZero, 0},
+	{"PushTwoLeftDeltaOne", PushTwoLeftDeltaOne, 0},
+	{"PushTwoPack5LeftDeltaOne", PushTwoPack5LeftDeltaOne, 0},
+	{"PushThreeLeftDeltaOne", PushThreeLeftDeltaOne, 0},
+	{"PushThreePack5LeftDeltaOne", PushThreePack5LeftDeltaOne, 0},
+	{"PushTwoLeftDeltaN", PushTwoLeftDeltaN, 0},
+	{"PushTwoPack5LeftDeltaN", PushTwoPack5LeftDeltaN, 0},
+	{"PushThreeLeftDeltaN", PushThreeLeftDeltaN, 0},
+	{"PushThreePack5LeftDeltaN", PushThreePack5LeftDeltaN, 0},
+	{"PushN", PushN, 0},
+	{"PushNAndNonTopological", PushNAndNonTopological, 310},
+	{"PopOnePlusOne", PopOnePlusOne, 2},
+	{"PopOnePlusN", PopOnePlusN, 0},
+	{"PopAllButOnePlusOne", PopAllButOnePlusOne, 1837},
+	{"PopAllButOnePlusN", PopAllButOnePlusN, 149},
+	{"PopAllButOnePlusNPack3Bits", PopAllButOnePlusNPack3Bits, 300},
+	{"PopAllButOnePlusNPack6Bits", PopAllButOnePlusNPack6Bits, 634},
+	{"PopNPlusOne", PopNPlusOne, 0},
+	{"PopNPlusN", PopNPlusN, 0},
+	{"PopNAndNonTopographical", PopNAndNonTopographical, 1},
+	{"NonTopoComplex", NonTopoComplex, 76},
+	{"NonTopoPenultimatePlusOne", NonTopoPenultimatePlusOne, 271},
+	{"NonTopoComplexPack4Bits", NonTopoComplexPack4Bits, 99},
+	{"FieldPathEncodeFinish", FieldPathEncodeFinish, 25474}
+]
+*/
+    //TODO build a huffman tree from the operation weights
+    //these are always the same, so can reuse the tree?
+    //convert to array of weights?
+    //then value=index, weight=array[index]
+    //construct the tree by using a priority queue (heap)
+    //push all the elements into the heap with custom comparator
+    //pop them out in sorted order
+    //to build the tree:
+    //pop two elements out
+    //construct a new node with value=sum of the two, left/right children, then push the new node into the 
+    //repeat until heap only has one element left
+    //this element is the root of the tree, return it
+    var huf = buildTree();
 }

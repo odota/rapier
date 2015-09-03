@@ -11,10 +11,12 @@ var BitStream = function(buf) {
 /**
  * Reads the specified number of bits (possibly non-aligned) and returns as 32bit int
  **/
-BitStream.prototype.readBits = function(n) {
+BitStream.prototype.readBits = function readBits(n) {
+    /*
     if (n > (this.limit - this.offset)) {
         throw "not enough bits left in stream to read!";
     }
+    */
     var bitOffset = this.offset % 8;
     var bitsToRead = bitOffset + n;
     var bytesToRead = ~~(bitsToRead / 8);
@@ -74,7 +76,7 @@ BitStream.prototype.readBits = function(n) {
 /**
  * Reads the specified number of bits into a Buffer and returns
  **/
-BitStream.prototype.readBuffer = function(bits) {
+BitStream.prototype.readBuffer = function readBuffer(bits) {
     var bytes = Math.ceil(bits / 8);
     var result = new Buffer(bytes);
     var offset = 0;
@@ -88,13 +90,13 @@ BitStream.prototype.readBuffer = function(bits) {
     }
     return result;
 };
-BitStream.prototype.readBoolean = function() {
+BitStream.prototype.readBoolean = function readBoolean() {
     return this.readBits(1);
 };
 /**
  * Reads until we reach a null terminator character and returns the result as a string
  **/
-BitStream.prototype.readNullTerminatedString = function() {
+BitStream.prototype.readNullTerminatedString = function readNullTerminatedString() {
     var str = "";
     while (true) {
         var byteInt = this.readBits(8);
@@ -108,13 +110,13 @@ BitStream.prototype.readNullTerminatedString = function() {
     //console.log(str);
     return str;
 };
-BitStream.prototype.readUInt8 = function() {
+BitStream.prototype.readUInt8 = function readUInt8() {
     return this.readBits(8);
 };
 /**
- * Reads a unsigned varint of up to 2^32 from the stream
+ * Reads an unsigned varint up to 2^32 from the stream
  **/
-BitStream.prototype.readVarUInt = function() {
+BitStream.prototype.readVarUInt = function readVarUInt() {
     var max = 32;
     var m = ((max + 6) / 7) * 7;
     var value = 0;
@@ -131,8 +133,8 @@ BitStream.prototype.readVarUInt = function() {
 /**
  * Reads an unsigned varint up to 2^64 from the stream
  **/
-BitStream.prototype.readVarUInt64 = function() {
-    //TODO probably need to use Long to handle the return result
+BitStream.prototype.readVarUInt64 = function readVarUInt64() {
+    //TODO need to use Long to handle the return result
     var x;
     var s;
     for (var i = 0;; i++) {
@@ -147,7 +149,10 @@ BitStream.prototype.readVarUInt64 = function() {
         s += 7;
     }
 };
-BitStream.prototype.readVarInt = function() {
+/**
+ * Reads a signed varint up to 2^31 from the stream
+ **/
+BitStream.prototype.readVarInt = function readVarInt() {
     var ux = this.readVarUInt();
     var x = ux >> 1;
     if (ux & 1 !== 0) {
@@ -156,7 +161,10 @@ BitStream.prototype.readVarInt = function() {
     }
     return x;
 }
-BitStream.prototype.readUBitVar = function() {
+/**
+ * Reads a special bit var from the stream, used for packet id
+ **/
+BitStream.prototype.readUBitVar = function readUBitVar() {
     // Thanks to Robin Dietrich for providing a clean version of this code :-)
     // The header looks like this: [XY00001111222233333333333333333333] where everything > 0 is optional.
     // The first 2 bits (X and Y) tell us how much (if any) to read other than the 6 initial bits:

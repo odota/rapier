@@ -1,5 +1,5 @@
 var HuffmanTree = function(){
-    //TODO serialize it as an array?
+    //TODO serialize it as an array?  traversal (level vs preorder?)
 };
 var HuffmanNode = function(){
     var self = {};
