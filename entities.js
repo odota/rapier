@@ -512,4 +512,10 @@ module.exports = function(p) {
     	*/
         return result;
     }
+    /**
+     * Given an array of counts, builds a huffman tree
+     **/
+    function buildTree(counts){
+        //TODO implement
+    }
 }
