@@ -73,8 +73,7 @@ module.exports = function(p) {
                 dt.properties.push(prop);
             });
             fs.serializers[name][version] = dt;
-            console.log(dt);
-            throw "stop";
+            //throw "stop";
         });
         p.serializers = fs;
     });
@@ -180,10 +179,120 @@ module.exports = function(p) {
 		return
 	}
 	*/
+	function decodeFloat(bs, f){
+	    //TODO special case if field.encoder="coord"
+	    if (!f.bitCount){
+	        //decode as float with certain number of bits
+	        return decodeBitFloat(bs, f);
+	    }
+	    else{
+	        //decode as 32 bit varint
+	        return bs.readVarUInt();
+	    }
+	}
+	function decodeBitFloat(bs, f){
+	    var bits = bs.readBits(f.bitCount);
+	    //convert the int32 represented here to a float
+	    //TODO read these bits as a 32 bit float
+	    //we need to write the 32bit int to a 4 byte buffer, then we can interpret it as a float
+	    console.error(bits);
+	    throw "stop";
+	    return;
+	}
+	function decodeUnsigned(bs, f){
+	    //TODO handle weird cases with unsigned int properties
+	    /*
+	switch (f.encoder) {
+	case "fixed64":
+		return decodeFixed64(r, f)
+	case "le64":
+		return decodeLeUint64(r, f)
+	}
+	*/
+	return bs.readVarUInt64();
+	}
+	function decodeSigned(bs, f){
+	    return bs.readVarInt();
+	}
+	function decodeString(bs, f){
+	    return bs.readNullTerminatedString();
+	}
+	function decodeFVector(bs, f){
+	    //TODO
+	    /*
+	    // Parse specific encoders
+	switch f.Encoder {
+	case "normal":
+		return r.read3BitNormal()
+	}
+	*/
+	return [decodeFloat(bs, f), decodeFloat(bs, f), decodeFloat(bs, f)];
+	}
+	function decodeBoolean(bs, f){
+	    return bs.readBoolean();
+	}
+	function decodeQuantized(bs, f){
+	    //TODO implement this instead of just skipping
+	    return bs.readBits(f.bitCount);
+	}
+	function decodeComponent(bs, f){
+	    return bs.readBits(1);
+	}
+	function decodeQAngle(bs, f){
+	    /*
+	    	ret := [3]float32{0.0, 0.0, 0.0}
+
+	// Parse specific encoders
+	switch f.Encoder {
+	case "qangle_pitch_yaw":
+		if f.BitCount != nil && f.Flags != nil && (*f.Flags&0x20 != 0) {
+			_panicf("Special Case: Unkown for now")
+		}
+
+		ret[0] = r.readAngle(uint(*f.BitCount))
+		ret[1] = r.readAngle(uint(*f.BitCount))
+		return ret
+	}
+
+	// Parse a standard angle
+	if f.BitCount != nil && *f.BitCount == 32 {
+		_panicf("Special Case: Unkown for now")
+	} else if f.BitCount != nil && *f.BitCount != 0 {
+		ret[0] = r.readAngle(uint(*f.BitCount))
+		ret[1] = r.readAngle(uint(*f.BitCount))
+		ret[2] = r.readAngle(uint(*f.BitCount))
+
+		return ret
+	} else {
+		rX := r.readBoolean()
+		rY := r.readBoolean()
+		rZ := r.readBoolean()
+
+		if rX {
+			ret[0] = r.readCoord()
+		}
+
+		if rY {
+			ret[1] = r.readCoord()
+		}
+
+		if rZ {
+			ret[2] = r.readCoord()
+		}
+
+		return ret
+	}
+
+	_panicf("No valid encoding determined")
+	return ret
+	*/
+	}
+	function decodeHandle(bs, f){
+	    return bs.readVarUInt();
+	}
         var decoder = serializer.decoder;
         //each decode function takes a bitstream to read from and the field properties
         //try to use field.type to determine the serializer to use
-        //TODO implement decoder functions
         switch (type) {
             case "float32":
                 decoder = decodeFloat;
@@ -212,7 +321,7 @@ module.exports = function(p) {
                 decoder = decodeBoolean;
                 break;
             case "CNetworkedQuantizedFloat":
-                decoder = decodeQuantized
+                decoder = decodeQuantized;
                 break;
             case "CRenderComponent":
             case "CPhysicsComponent":
@@ -245,7 +354,7 @@ module.exports = function(p) {
 			*/
                 }
                 else {
-                    console.error("no decoder for %s", field);
+                    console.error("no decoder for %s", field.name);
                 }
         }
         // match all pointers as boolean
@@ -256,31 +365,17 @@ module.exports = function(p) {
         var vectorRegex = /CUtlVector\<\s(.*)\s>$/;
         //matches the array regex
         /*
-	if match := matchArray.FindStringSubmatch(name); match != nil {
-		typeName := match[1]
-		length, err := strconv.ParseInt(match[2], 10, 64)
-		if err != nil {
-			_panicf("Array length doesn't seem to be a number: %v", match[2])
-		}
-
-		serializer, found := pst.Serializers[typeName]
-		if !found {
-			serializer = pst.GetPropertySerializerByName(typeName)
-			pst.Serializers[typeName] = serializer
-		}
-
-		ps := &PropertySerializer{
-			Decode:          serializer.Decode,
-			DecodeContainer: decoderContainer,
-			IsArray:         true,
-			Length:          uint32(length),
-			ArraySerializer: serializer,
-			Name:            typeName,
-		}
-		pst.Serializers[name] = ps
+        var arrayMatch = arrayRegex.exec(name);
+	if (arrayMatch.length > 1) {
+		var typeName := arrayMatch[2];
+		var length = String.parseInt(arrayMatch[3], 10);
+        //this property is an array
+        //we can use an existing serializer
 		return ps
 	}
+	*/
 //matches the vector regex
+/*
 	if match := matchVector.FindStringSubmatch(name); match != nil {
 		ps := &PropertySerializer{
 			Decode:          decoder,
@@ -292,9 +387,8 @@ module.exports = function(p) {
 		pst.Serializers[name] = ps
 		return ps
 	}
-	*/
+*/
         /*
-
 	if name == "C_DOTA_ItemStockInfo[MAX_ITEM_STOCKS]" {
 		typeName := "C_DOTA_ItemStockInfo"
 
@@ -372,20 +466,22 @@ module.exports = function(p) {
         return serializer;
     }
     /**
-     * Given a bitstream and a property table, return a mapping of properties
+     * Given a bitstream and a dt for this entity class, return a mapping of properties
+     * The dt contains the information about the fields in this entity, and includes methods to decode the raw bits
+     * The list of fields is huffman-encoded at the start of the bitstream
+     * The rest of the stream contains the encoded properties.
      **/
-    function readEntityProperties(bs, table) {
+    function readEntityProperties(bs, dtr) {
         //TODO implement this
+        var result = {};
+        //implement the huffman tree as an array (stored like a heap)
+        var fieldpath = [];
+        //walk the given huffman tree and return a list of properties
+        //var fields = walk(fieldpath);
+        
         /*
 	// Return type
-	result = make(map[string]interface{})
-
-	// Copy baseline if any
-	if baseline != nil {
-		for k, v := range baseline {
-			result[k] = v
-		}
-	}
+	result = NewProperties()
 
 	// Create fieldpath
 	fieldPath := newFieldpath(ser, &huf)
@@ -395,23 +491,25 @@ module.exports = function(p) {
 
 	// iterate all the fields and set their corresponding values
 	for _, f := range fieldPath.fields {
-		if f.Field.Serializer.Decode == nil {
-			result[f.Name] = r.readVarUint32()
-			_debugfl(6, "Decoded default: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
-			continue
-		}
+		_debugfl(6, "Decoding field %d %s %s", r.pos, f.Name, f.Field.Type)
+		// r.dumpBits(1)
 
 		if f.Field.Serializer.DecodeContainer != nil {
-			result[f.Name] = f.Field.Serializer.DecodeContainer(r, f.Field)
+			_debugfl(6, "Decoding container %v", f.Field.Name)
+			result.KV[f.Name] = f.Field.Serializer.DecodeContainer(r, f.Field)
+		} else if f.Field.Serializer.Decode == nil {
+			result.KV[f.Name] = r.readVarUint32()
+			_debugfl(6, "Decoded default: %d %s %s %v", r.pos, f.Name, f.Field.Type, result.KV[f.Name])
+			continue
 		} else {
-			result[f.Name] = f.Field.Serializer.Decode(r, f.Field)
+			result.KV[f.Name] = f.Field.Serializer.Decode(r, f.Field)
 		}
 
-		_debugfl(6, "Decoded: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
+		_debugfl(6, "Decoded: %d %s %s %v", r.pos, f.Name, f.Field.Type, result.KV[f.Name])
 	}
 
 	return result
     	*/
-        return;
+        return result;
     }
 }

@@ -108,9 +108,12 @@ BitStream.prototype.readNullTerminatedString = function() {
     //console.log(str);
     return str;
 };
-BitStream.prototype.readUInt8 = function(){
+BitStream.prototype.readUInt8 = function() {
     return this.readBits(8);
 };
+/**
+ * Reads a unsigned varint of up to 2^32 from the stream
+ **/
 BitStream.prototype.readVarUInt = function() {
     var max = 32;
     var m = ((max + 6) / 7) * 7;
@@ -125,6 +128,34 @@ BitStream.prototype.readVarUInt = function() {
         }
     }
 };
+/**
+ * Reads an unsigned varint up to 2^64 from the stream
+ **/
+BitStream.prototype.readVarUInt64 = function() {
+    //TODO probably need to use Long to handle the return result
+    var x;
+    var s;
+    for (var i = 0;; i++) {
+        var b = this.readUInt8();
+        if (b < 0x80) {
+            if (i > 9 || (i == 9 && b > 1)) {
+                throw "read overflow: varint overflows uint64";
+            }
+            return x | b << s;
+        }
+        x |= b & 0x7f << s;
+        s += 7;
+    }
+};
+BitStream.prototype.readVarInt = function() {
+    var ux = this.readVarUInt();
+    var x = ux >> 1;
+    if (ux & 1 !== 0) {
+        //invert x
+        x = ~x;
+    }
+    return x;
+}
 BitStream.prototype.readUBitVar = function() {
     // Thanks to Robin Dietrich for providing a clean version of this code :-)
     // The header looks like this: [XY00001111222233333333333333333333] where everything > 0 is optional.
