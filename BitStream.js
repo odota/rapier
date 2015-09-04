@@ -50,7 +50,7 @@ BitStream.prototype.readBits = function readBits(n) {
         //this means in practice we may have difficulty with n >= 25 bits (since offset can be up to 7)
         //can't fit that into a 32 bit int unless we use JS Long, which is slow
         console.error(bitsToRead);
-        throw "requires long to read >32 bits from bitstream!"
+        throw "requires long to read >32 bits from bitstream!";
         /*
         //64 bit shifting, we only need this if our operations cant fit into 32 bits
         value = new Long();
