@@ -43,7 +43,7 @@ module.exports = function(p) {
         //rewrap it in a new Buffer to force usage of node Buffer wrapper rather than ArrayBuffer when in browser
         var buf = new Buffer(msg.data.toBuffer());
         //convert the buffer object into a bitstream so we can read bits from it
-        var bs = new BitStream(buf);
+        var bs = BitStream(buf);
         //read until less than 8 bits left
         while (bs.limit - bs.offset >= 8) {
             var t = bs.readUBitVar();

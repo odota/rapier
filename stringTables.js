@@ -90,7 +90,7 @@ module.exports = function(p){
             return [];
         }
         var items = [];
-        var bs = new BitStream(buf);
+        var bs = BitStream(buf);
         // Start with an index of -1.
         // If the first item is at index 0 it will use a incr operation.
         var index = -1;

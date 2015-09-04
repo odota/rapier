@@ -1,4 +1,5 @@
 var BitStream = require('./BitStream');
+var Huffman = require('./huffman');
 module.exports = function(p) {
     var dota = p.dota;
     //contains some useful data for entity parsing
@@ -16,7 +17,7 @@ module.exports = function(p) {
     p.on("CDemoSendTables", function(msg) {
         //extract data
         var buf = new Buffer(msg.data.toBuffer());
-        var bs = new BitStream(buf);
+        var bs = BitStream(buf);
         //first bytes are a varuint
         var size = bs.readVarUInt();
         //next bytes are a CSVCMsg_FlattenedSerializer, decode with protobuf
@@ -81,7 +82,7 @@ module.exports = function(p) {
     p.on("CSVCMsg_PacketEntities", function(msg) {
         //packet entities are contained in a buffer in this packet
         var buf = new Buffer(msg.entity_data.toBuffer());
-        var bs = new BitStream(buf);
+        var bs = BitStream(buf);
         var index = -1;
         return;
         //read as many entries as the message says to
@@ -480,7 +481,7 @@ module.exports = function(p) {
      * Given a bitstream and a dt for this entity class, return a mapping of properties
      * The dt contains the information about the fields in this entity, and includes methods to decode the raw bits
      * The list of fields is encoded at the start of the bitstream
-     * We interpret it by reading a bit at a time from bitstream and walking the huffman tree based on the bit
+     * We interpret it by reading a bit at a time from bitstream and walking the huffman tree of fieldops based on the bit
      * At each node, we perform a fieldpath operation
      * If we haven't ended our walk, we add a field
      * The rest of the stream contains the encoded properties.
@@ -533,12 +534,6 @@ module.exports = function(p) {
     	*/
         return result;
     }
-    /**
-     * Given an array of counts, builds a huffman tree
-     **/
-    function buildTree(counts) {
-        //TODO implement
-    }
 
     function walk(bs, fieldpath) {}
     // Global fieldpath lookup array
@@ -589,15 +584,5 @@ var fieldpathOperations = [
 */
     //TODO build a huffman tree from the operation weights
     //these are always the same, so can reuse the tree?
-    //convert to array of weights?
-    //then value=index, weight=array[index]
-    //construct the tree by using a priority queue (heap)
-    //push all the elements into the heap with custom comparator
-    //pop them out in sorted order
-    //to build the tree:
-    //pop two elements out
-    //construct a new node with value=sum of the two, left/right children, then push the new node into the 
-    //repeat until heap only has one element left
-    //this element is the root of the tree, return it
-    var huf = buildTree();
+    var huf = Huffman(counts);
 }
