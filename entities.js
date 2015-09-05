@@ -3,6 +3,7 @@ var Huffman = require('./huffman');
 var util = require('./util');
 var extractBuffer = util.extractBuffer;
 module.exports = function(p) {
+    //TODO p.entities[name] may not contain property we want.  in this case we fall back to baseline, but we should abstract it away from the user.
     var dota = p.dota;
     //contains some useful data for entity parsing
     p.on("CSVCMsg_ServerInfo", function(msg) {
@@ -87,6 +88,7 @@ module.exports = function(p) {
         var bs = BitStream(buf);
         var index = -1;
         return;
+        //TODO optimize by only processing the first full packet (check is_delta)
         //read as many entries as the message says to
         for (var i = 0; i < msg.updated_entries; i++) {
             // Read the index delta from the buffer.
@@ -119,24 +121,39 @@ module.exports = function(p) {
             // Proceed based on the update type
             switch (updateType) {
                 case "C":
-                    // Create a new packetEntity.
-                    var classId = bs.readBits(p.server_info.classIdSize);
-                    // Get the associated class for this entity id.  This is a name (string).
-                    var className = p.classInfo[classId];
-                    // Get the associated serializer.  These are keyed by entity name.
-                    //currently using version 0 for everything
-                    var dt = p.serializers[className][0];
-                    var pe = {
-                        index: index,
-                        classId: classId,
-                        className: className,
-                        dt: dt,
-                        properties: {},
-                    };
-                    // Skip the 10 serial bits for now.
-                    bs.readBits(10);
-                    // Read properties and set them in the packetEntity
-                    pe.properties = readEntityProperties(bs, pe.dt);
+                    var pe = null;
+                    if (p.entities[index]) {
+                        //entity already exists
+                        bs.readBits(p.classIdSize);
+                        bs.readBits(25);
+                        pe = p.entities[index];
+                    }
+                    else {
+                        // Create a new packetEntity.
+                        var classId = bs.readBits(p.classIdSize);
+                        var serial = bs.readBits(25);
+                        // Get the associated class for this entity id.  This is a name (string).
+                        var className = p.classInfo[classId];
+                        //get the baseline for this class (fallback for properties)
+                        var classBaseline = p.baselines[classId];
+                        // Get the associated serializer.  These are keyed by entity name.
+                        //currently using version 0 for everything
+                        var dt = p.serializers[className][0];
+                        pe = {
+                            index: index,
+                            classId: classId,
+                            serial: serial,
+                            className: className,
+                            classBaseline: classBaseline,
+                            dt: dt,
+                            properties: {}
+                        };
+                    }
+                    // Read properties and merge them with existing properties
+                    var properties = readEntityProperties(bs, pe.dt);
+                    for (var key in properties) {
+                        pe.properties[key] = properties[key];
+                    }
                     p.entities[index] = pe;
                     break;
                 case "U":
