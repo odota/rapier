@@ -44,6 +44,9 @@ function HuffmanNode(options) {
     self.value = options.v;
     self.left = options.left;
     self.right = options.right;
+    self.isLeaf = function(){
+        return !self.left && !self.right;
+    };
     return self;
 }
 

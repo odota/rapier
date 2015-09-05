@@ -302,7 +302,7 @@ module.exports = function(p) {
         function decodeHandle(bs, f) {
             return bs.readVarUInt();
         }
-        var decoder = serializer.decoder;
+        var decoder = null;
         //each decode function takes a bitstream to read from and the field properties
         //try to use field.type to determine the serializer to use
         switch (type) {
@@ -373,6 +373,7 @@ module.exports = function(p) {
         if (name.slice(-1) === "*") {
             decoder = decodeBoolean;
         }
+        serializer.decoder = decoder;
         var arrayRegex = /([^[\]]+)\[(\d+)]/;
         var vectorRegex = /CUtlVector\<\s(.*)\s>$/;
         //matches the array regex
@@ -482,35 +483,30 @@ module.exports = function(p) {
      * The dt contains the information about the fields in this entity, and includes methods to decode the raw bits
      * The list of fields is encoded at the start of the bitstream
      * We interpret it by reading a bit at a time from bitstream and walking the huffman tree of fieldops based on the bit
-     * At each node, we perform a fieldpath operation
-     * If we haven't ended our walk, we add a field
+     * A fieldpath operation modifies the current state of index by adjusting the last value by a certain amount
+     * The value of the node is the index of the fieldpath operation
+     * If we reach a leaf, we perform a fieldpath operation
+     * If we haven't ended our walk, we add a field (also adds to index array)
+     * Reset to root node
+     * We finish with an array of fields and an array of corresponding indices
      * The rest of the stream contains the encoded properties.
      **/
     function readEntityProperties(bs, dt) {
-        //TODO implement this
+        //TODO implement this fully
         var result = {};
         //create a new fieldpath object
         var fieldpath = {
             parent: dt,
             fields: [],
             //start with a -1 index for the path
-            indexes: [-1],
+            index: [-1],
             tree: huf,
             finished: false
         };
-        //walk the huffman tree while reading from bitstream and set the array of fields 
+        //walk the huffman tree while reading from bitstream and set the arrays of fields/indices
         //each field is an object with name and dt_field
-        fieldpath.fields = walk(bs, fieldpath);
+        walk(bs, fieldpath);
         /*
-	// Return type
-	result = NewProperties()
-
-	// Create fieldpath
-	fieldPath := newFieldpath(ser, &huf)
-
-	// Get a list of the included fields
-	fieldPath.walk(r)
-
 	// iterate all the fields and set their corresponding values
 	for _, f := range fieldPath.fields {
 		_debugfl(6, "Decoding field %d %s %s", r.pos, f.Name, f.Field.Type)
@@ -529,60 +525,572 @@ module.exports = function(p) {
 
 		_debugfl(6, "Decoded: %d %s %s %v", r.pos, f.Name, f.Field.Type, result.KV[f.Name])
 	}
-
-	return result
     	*/
         return result;
     }
-
-    function walk(bs, fieldpath) {}
+    /**
+     * Walks the huffman tree 
+     **/
+    function walk(bs, fp) {
+        var count = 0;
+        var root = fp.huf;
+        var node = root;
+        while (!fp.finished) {
+            count += 1;
+            if (bs.readBoolean()) {
+                //go right
+                var right = node.right;
+                if (right.isLeaf()) {
+                    node = root;
+                    //perform a fieldpath operation
+                    fieldpathOperations[right.value].op(bs, fp);
+                    if (!fp.finished) {
+                        addField(fp);
+                    }
+                    count = 0;
+                }
+                else {
+                    //not a leaf, continue the walk
+                    node = right;
+                }
+            }
+            else {
+                //go left
+                var left = node.left;
+                if (left.isLeaf()) {
+                    node = root;
+                    //perform a fieldpath operation
+                    fieldpathOperations[left.value].op(bs, fp);
+                    if (!fp.finished) {
+                        addField(fp);
+                    }
+                    count = 0;
+                }
+                else {
+                    node = right;
+                }
+            }
+        }
+    }
+    // Adds a field based on the current index
+    function addField(fieldpath) {
+        /*
+        cDt: = fp.parent
+        var name string
+        var i int
+        if debugLevel >= 6 {
+            var path string
+            for i: = 0;
+            i < len(fp.index) - 1;
+            i++{
+                path += strconv.Itoa(int(fp.index[i])) + "/"
+            }
+            _debugfl(6, "Adding field with path: %s%d", path, fp.index[len(fp.index) - 1])
+        }
+        for i = 0;i < len(fp.index) - 1;i++{
+            if cDt.Properties[fp.index[i]].Table != nil {
+                cDt = cDt.Properties[fp.index[i]].Table
+                name += cDt.Name + "."
+            }
+            else {
+                // Hint:
+                // If this panics, the property in question migh have a type that doesn't premit automatic array deduction (e.g. no CUtlVector prefix, or [] suffix).
+                // Adjust the type manualy in property_serializers.go
+                _panicf("expected table in fp properties: %v, %v", cDt.Properties[fp.index[i]].Field.Name, cDt.Properties[fp.index[i]].Field.Type)
+            }
+        }
+        fp.fields = append(fp.fields, & fieldpath_field {
+            name + cDt.Properties[fp.index[i]].Field.Name, cDt.Properties[fp.index[i]].Field
+        })
+        */
+    }
     // Global fieldpath lookup array
-    //name, function, weight
-    /*
-var fieldpathOperations = [
-	{"PlusOne", PlusOne, 36271},
-	{"PlusTwo", PlusTwo, 10334},
-	{"PlusThree", PlusThree, 1375},
-	{"PlusFour", PlusFour, 646},
-	{"PlusN", PlusN, 4128},
-	{"PushOneLeftDeltaZeroRightZero", PushOneLeftDeltaZeroRightZero, 35},
-	{"PushOneLeftDeltaZeroRightNonZero", PushOneLeftDeltaZeroRightNonZero, 3},
-	{"PushOneLeftDeltaOneRightZero", PushOneLeftDeltaOneRightZero, 521},
-	{"PushOneLeftDeltaOneRightNonZero", PushOneLeftDeltaOneRightNonZero, 2942},
-	{"PushOneLeftDeltaNRightZero", PushOneLeftDeltaNRightZero, 560},
-	{"PushOneLeftDeltaNRightNonZero", PushOneLeftDeltaNRightNonZero, 471},
-	{"PushOneLeftDeltaNRightNonZeroPack6Bits", PushOneLeftDeltaNRightNonZeroPack6Bits, 10530},
-	{"PushOneLeftDeltaNRightNonZeroPack8Bits", PushOneLeftDeltaNRightNonZeroPack8Bits, 251},
-	{"PushTwoLeftDeltaZero", PushTwoLeftDeltaZero, 0},
-	{"PushTwoPack5LeftDeltaZero", PushTwoPack5LeftDeltaZero, 0},
-	{"PushThreeLeftDeltaZero", PushThreeLeftDeltaZero, 0},
-	{"PushThreePack5LeftDeltaZero", PushThreePack5LeftDeltaZero, 0},
-	{"PushTwoLeftDeltaOne", PushTwoLeftDeltaOne, 0},
-	{"PushTwoPack5LeftDeltaOne", PushTwoPack5LeftDeltaOne, 0},
-	{"PushThreeLeftDeltaOne", PushThreeLeftDeltaOne, 0},
-	{"PushThreePack5LeftDeltaOne", PushThreePack5LeftDeltaOne, 0},
-	{"PushTwoLeftDeltaN", PushTwoLeftDeltaN, 0},
-	{"PushTwoPack5LeftDeltaN", PushTwoPack5LeftDeltaN, 0},
-	{"PushThreeLeftDeltaN", PushThreeLeftDeltaN, 0},
-	{"PushThreePack5LeftDeltaN", PushThreePack5LeftDeltaN, 0},
-	{"PushN", PushN, 0},
-	{"PushNAndNonTopological", PushNAndNonTopological, 310},
-	{"PopOnePlusOne", PopOnePlusOne, 2},
-	{"PopOnePlusN", PopOnePlusN, 0},
-	{"PopAllButOnePlusOne", PopAllButOnePlusOne, 1837},
-	{"PopAllButOnePlusN", PopAllButOnePlusN, 149},
-	{"PopAllButOnePlusNPack3Bits", PopAllButOnePlusNPack3Bits, 300},
-	{"PopAllButOnePlusNPack6Bits", PopAllButOnePlusNPack6Bits, 634},
-	{"PopNPlusOne", PopNPlusOne, 0},
-	{"PopNPlusN", PopNPlusN, 0},
-	{"PopNAndNonTopographical", PopNAndNonTopographical, 1},
-	{"NonTopoComplex", NonTopoComplex, 76},
-	{"NonTopoPenultimatePlusOne", NonTopoPenultimatePlusOne, 271},
-	{"NonTopoComplexPack4Bits", NonTopoComplexPack4Bits, 99},
-	{"FieldPathEncodeFinish", FieldPathEncodeFinish, 25474}
-]
-*/
-    //TODO build a huffman tree from the operation weights
+    var fieldpathOperations = [
+        {
+            name: "PlusOne",
+            op: PlusOne,
+            weight: 36271
+            },
+        {
+            name: "PlusTwo",
+            op: PlusTwo,
+            weight: 10334
+            },
+        {
+            name: "PlusThree",
+            op: PlusThree,
+            weight: 1375
+            },
+        {
+            name: "PlusFour",
+            op: PlusFour,
+            weight: 646
+            },
+        {
+            name: "PlusN",
+            op: PlusN,
+            weight: 4128
+            },
+        {
+            name: "PushOneLeftDeltaZeroRightZero",
+            op: PushOneLeftDeltaZeroRightZero,
+            weight: 35
+            },
+        {
+            name: "PushOneLeftDeltaZeroRightNonZero",
+            op: PushOneLeftDeltaZeroRightNonZero,
+            weight: 3
+            },
+        {
+            name: "PushOneLeftDeltaOneRightZero",
+            op: PushOneLeftDeltaOneRightZero,
+            weight: 521
+            },
+        {
+            name: "PushOneLeftDeltaOneRightNonZero",
+            op: PushOneLeftDeltaOneRightNonZero,
+            weight: 2942
+            },
+        {
+            name: "PushOneLeftDeltaNRightZero",
+            op: PushOneLeftDeltaNRightZero,
+            weight: 560
+            },
+        {
+            name: "PushOneLeftDeltaNRightNonZero",
+            op: PushOneLeftDeltaNRightNonZero,
+            weight: 471
+            },
+        {
+            name: "PushOneLeftDeltaNRightNonZeroPack6Bits",
+            op: PushOneLeftDeltaNRightNonZeroPack6Bits,
+            weight: 10530
+            },
+        {
+            name: "PushOneLeftDeltaNRightNonZeroPack8Bits",
+            op: PushOneLeftDeltaNRightNonZeroPack8Bits,
+            weight: 251
+            },
+        {
+            name: "PushTwoLeftDeltaZero",
+            op: PushTwoLeftDeltaZero,
+            weight: 0
+            },
+        {
+            name: "PushTwoPack5LeftDeltaZero",
+            op: PushTwoPack5LeftDeltaZero,
+            weight: 0
+            },
+        {
+            name: "PushThreeLeftDeltaZero",
+            op: PushThreeLeftDeltaZero,
+            weight: 0
+            },
+        {
+            name: "PushThreePack5LeftDeltaZero",
+            op: PushThreePack5LeftDeltaZero,
+            weight: 0
+            },
+        {
+            name: "PushTwoLeftDeltaOne",
+            op: PushTwoLeftDeltaOne,
+            weight: 0
+            },
+        {
+            name: "PushTwoPack5LeftDeltaOne",
+            op: PushTwoPack5LeftDeltaOne,
+            weight: 0
+            },
+        {
+            name: "PushThreeLeftDeltaOne",
+            op: PushThreeLeftDeltaOne,
+            weight: 0
+            },
+        {
+            name: "PushThreePack5LeftDeltaOne",
+            op: PushThreePack5LeftDeltaOne,
+            weight: 0
+            },
+        {
+            name: "PushTwoLeftDeltaN",
+            op: PushTwoLeftDeltaN,
+            weight: 0
+            },
+        {
+            name: "PushTwoPack5LeftDeltaN",
+            op: PushTwoPack5LeftDeltaN,
+            weight: 0
+            },
+        {
+            name: "PushThreeLeftDeltaN",
+            op: PushThreeLeftDeltaN,
+            weight: 0
+            },
+        {
+            name: "PushThreePack5LeftDeltaN",
+            op: PushThreePack5LeftDeltaN,
+            weight: 0
+            },
+        {
+            name: "PushN",
+            op: PushN,
+            weight: 0
+            },
+        {
+            name: "PushNAndNonTopological",
+            op: PushNAndNonTopological,
+            weight: 310
+            },
+        {
+            name: "PopOnePlusOne",
+            op: PopOnePlusOne,
+            weight: 2
+            },
+        {
+            name: "PopOnePlusN",
+            op: PopOnePlusN,
+            weight: 0
+            },
+        {
+            name: "PopAllButOnePlusOne",
+            op: PopAllButOnePlusOne,
+            weight: 1837
+            },
+        {
+            name: "PopAllButOnePlusN",
+            op: PopAllButOnePlusN,
+            weight: 149
+            },
+        {
+            name: "PopAllButOnePlusNPack3Bits",
+            op: PopAllButOnePlusNPack3Bits,
+            weight: 300
+            },
+        {
+            name: "PopAllButOnePlusNPack6Bits",
+            op: PopAllButOnePlusNPack6Bits,
+            weight: 634
+            },
+        {
+            name: "PopNPlusOne",
+            op: PopNPlusOne,
+            weight: 0
+            },
+        {
+            name: "PopNPlusN",
+            op: PopNPlusN,
+            weight: 0
+            },
+        {
+            name: "PopNAndNonTopographical",
+            op: PopNAndNonTopographical,
+            weight: 1
+            },
+        {
+            name: "NonTopoComplex",
+            op: NonTopoComplex,
+            weight: 76
+            },
+        {
+            name: "NonTopoPenultimatePlusOne",
+            op: NonTopoPenultimatePlusOne,
+            weight: 271
+            },
+        {
+            name: "NonTopoComplexPack4Bits",
+            op: NonTopoComplexPack4Bits,
+            weight: 99
+            },
+        {
+            name: "FieldPathEncodeFinish",
+            op: FieldPathEncodeFinish,
+            weight: 25474
+            }
+];
+    //build a huffman tree from the operation weights
     //these are always the same, so can reuse the tree?
-    var huf = Huffman(counts);
+    var huf = Huffman(fieldpathOperations.map(function(f) {
+        return f.weight;
+    }));
+
+    function PlusOne(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += 1
+    }
+
+    function PlusTwo(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += 2
+    }
+
+    function PlusThree(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += 3
+    }
+
+    function PlusFour(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += 4
+    }
+
+    function PlusN(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += int32(r.readUBitVarFP()) + 5
+    }
+
+    function PushOneLeftDeltaZeroRightZero(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = append(fp.index, 0)
+    }
+
+    function PushOneLeftDeltaZeroRightNonZero(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+    }
+
+    function PushOneLeftDeltaOneRightZero(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += 1
+        fp.index = append(fp.index, 0)
+    }
+
+    function PushOneLeftDeltaOneRightNonZero(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += 1
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+    }
+
+    function PushOneLeftDeltaNRightZero(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += int32(r.readUBitVarFP())
+        fp.index = append(fp.index, 0)
+    }
+
+    function PushOneLeftDeltaNRightNonZero(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += int32(r.readUBitVarFP()) + 2
+        fp.index = append(fp.index, int32(r.readUBitVarFP()) + 1)
+    }
+
+    function PushOneLeftDeltaNRightNonZeroPack6Bits(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += int32(r.readBits(3)) + 2
+        fp.index = append(fp.index, int32(r.readBits(3)) + 1)
+    }
+
+    function PushOneLeftDeltaNRightNonZeroPack8Bits(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += int32(r.readBits(4)) + 2
+        fp.index = append(fp.index, int32(r.readBits(4)) + 1)
+    }
+
+    function PushTwoLeftDeltaZero(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = append(fp.index, 0)
+        fp.index = append(fp.index, 0)
+    }
+
+    function PushTwoLeftDeltaOne(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1]++
+            fp.index = append(fp.index, int32(r.readUBitVarFP()))
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+    }
+
+    function PushTwoLeftDeltaN(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += int32(r.readUBitVar()) + 2
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+    }
+
+    function PushTwoPack5LeftDeltaZero(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = append(fp.index, int32(r.readBits(5)))
+        fp.index = append(fp.index, int32(r.readBits(5)))
+    }
+
+    function PushTwoPack5LeftDeltaOne(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1]++
+            fp.index = append(fp.index, int32(r.readBits(5)))
+        fp.index = append(fp.index, int32(r.readBits(5)))
+    }
+
+    function PushTwoPack5LeftDeltaN(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += int32(r.readUBitVar()) + 2
+        fp.index = append(fp.index, int32(r.readBits(5)))
+        fp.index = append(fp.index, int32(r.readBits(5)))
+    }
+
+    function PushThreeLeftDeltaZero(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+    }
+
+    function PushThreeLeftDeltaOne(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1]++
+            fp.index = append(fp.index, int32(r.readUBitVarFP()))
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+    }
+
+    function PushThreeLeftDeltaN(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += int32(r.readUBitVar()) + 2
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+        fp.index = append(fp.index, int32(r.readUBitVarFP()))
+    }
+
+    function PushThreePack5LeftDeltaZero(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = append(fp.index, int32(r.readBits(5)))
+        fp.index = append(fp.index, int32(r.readBits(5)))
+        fp.index = append(fp.index, int32(r.readBits(5)))
+    }
+
+    function PushThreePack5LeftDeltaOne(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1]++
+            fp.index = append(fp.index, int32(r.readBits(5)))
+        fp.index = append(fp.index, int32(r.readBits(5)))
+        fp.index = append(fp.index, int32(r.readBits(5)))
+    }
+
+    function PushThreePack5LeftDeltaN(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 1] += int32(r.readUBitVar()) + 2
+        fp.index = append(fp.index, int32(r.readBits(5)))
+        fp.index = append(fp.index, int32(r.readBits(5)))
+        fp.index = append(fp.index, int32(r.readBits(5)))
+    }
+
+    function PushN(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        n: = int(r.readUBitVar())
+        fp.index[len(fp.index) - 1] += int32(r.readUBitVar())
+        for i: = 0;
+        i < n;
+        i++{
+            fp.index = append(fp.index, int32(r.readUBitVarFP()))
+        }
+    }
+
+    function PushNAndNonTopological(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        for i: = 0;
+        i < len(fp.index);
+        i++{
+            if r.readBoolean() {
+                fp.index[i] += r.readVarInt32() + 1
+            }
+        }
+        count: = int(r.readUBitVar())
+        for j: = 0;
+        j < count;
+        j++{
+            fp.index = append(fp.index, int32(r.readUBitVarFP()))
+        }
+    }
+
+    function PopOnePlusOne(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = fp.index[: len(fp.index) - 1]
+        fp.index[len(fp.index) - 1] += 1
+    }
+
+    function PopOnePlusN(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = fp.index[: len(fp.index) - 1]
+        fp.index[len(fp.index) - 1] += int32(r.readUBitVarFP()) + 1
+    }
+
+    function PopAllButOnePlusOne(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = fp.index[: 1]
+        fp.index[len(fp.index) - 1] += 1
+    }
+
+    function PopAllButOnePlusN(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = fp.index[: 1]
+        fp.index[len(fp.index) - 1] += int32(r.readUBitVarFP()) + 1
+    }
+
+    function PopAllButOnePlusNPackN(bs, fp) {
+        _panicf("Name: %s", fp.parent.Name)
+    }
+
+    function PopAllButOnePlusNPack3Bits(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = fp.index[: 1]
+        fp.index[len(fp.index) - 1] += int32(r.readBits(3)) + 1
+    }
+
+    function PopAllButOnePlusNPack6Bits(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = fp.index[: 1]
+        fp.index[len(fp.index) - 1] += int32(r.readBits(6)) + 1
+    }
+
+    function PopNPlusOne(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = fp.index[: len(fp.index) - (int(r.readUBitVarFP()))]
+        fp.index[len(fp.index) - 1] += 1
+    }
+
+    function PopNPlusN(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = fp.index[: len(fp.index) - (int(r.readUBitVarFP()))]
+        fp.index[len(fp.index) - 1] += r.readVarInt32()
+    }
+
+    function PopNAndNonTopographical(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index = fp.index[: len(fp.index) - (int(r.readUBitVarFP()))]
+        for i: = 0;
+        i < len(fp.index);
+        i++{
+            if r.readBoolean() {
+                fp.index[i] += r.readVarInt32()
+            }
+        }
+    }
+
+    function NonTopoComplex(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        for i: = 0;
+        i < len(fp.index);
+        i++{
+            if r.readBoolean() {
+                fp.index[i] += r.readVarInt32()
+            }
+        }
+    }
+
+    function NonTopoPenultimatePlusOne(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.index[len(fp.index) - 2] += 1
+    }
+
+    function NonTopoComplexPack4Bits(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        for i: = 0;
+        i < len(fp.index);
+        i++{
+            if r.readBoolean() {
+                fp.index[i] += int32(r.readBits(4)) - 7
+            }
+        }
+    }
+
+    function FieldPathEncodeFinish(bs, fp) {
+        _debugfl(10, "Name: %s", fp.parent.Name)
+        fp.finished = true
+    }
 }
