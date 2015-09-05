@@ -134,7 +134,7 @@ var Parser = function(input, options) {
      **/
     require("./packets")(p);
     require("./stringTables")(p);
-    require("./entities")(p);
+    //require("./entities")(p);
     p.on("CDemoStop", function(data) {
         //don't stop on CDemoStop since some replays have CDemoGameInfo after it
         //stop = true;

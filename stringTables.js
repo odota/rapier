@@ -1,13 +1,14 @@
 var BitStream = require('./BitStream');
 var snappy = require('./snappy');
-module.exports = function(p){
-     //string tables may mutate over the lifetime of the replay.
+var util = require('./util');
+var extractBuffer = util.extractBuffer;
+module.exports = function(p) {
+    //string tables may mutate over the lifetime of the replay.
     //Therefore we listen for create/update events and modify the table as needed.
     //p.on("CDemoStringTables", readCDemoStringTables);
     p.on("CSVCMsg_CreateStringTable", readCreateStringTable);
     p.on("CSVCMsg_UpdateStringTable", readUpdateStringTable);
-    
-    
+
     function readCDemoStringTables(data) {
         //rather than processing when we read this demo message, we want to create when we read the packet CSVCMsg_CreateStringTable
         //this packet is just emitted as a state dump at intervals
@@ -17,8 +18,7 @@ module.exports = function(p){
     function readCreateStringTable(msg) {
         //create a stringtable
         //console.error(data);
-        //extract the native buffer from the string_data ByteBuffer, with the offset removed
-        var buf = new Buffer(msg.string_data.toBuffer());
+        var buf = extractBuffer(msg.string_data);
         if (msg.data_compressed) {
             //decompress the string data with snappy
             //early source 2 replays may use LZSS, we can detect this by reading the first four bytes of buffer
@@ -46,7 +46,7 @@ module.exports = function(p){
         //retrieve table by id
         var table = p.stringTables.tables[msg.table_id];
         //extract native buffer
-        var buf = new Buffer(msg.string_data.toBuffer());
+        var buf = extractBuffer(msg.string_data);
         if (table) {
             var items = parseStringTableData(buf, msg.num_changed_entries, table.user_data_fixed_size, table.user_data_size);
             var string_data = table.string_data;
@@ -86,7 +86,7 @@ module.exports = function(p){
      **/
     function parseStringTableData(buf, num_entries, userDataFixedSize, userDataSize) {
         // Some tables have no data
-        if (!buf.length) {
+        if (!buf.limit) {
             return [];
         }
         var items = [];

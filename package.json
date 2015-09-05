@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "async": "^1.4.2",
+    "bytebuffer": "^4.0.0",
     "heap": "^0.2.6",
     "protobufjs": "4.0.0"
   },

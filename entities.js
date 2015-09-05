@@ -1,5 +1,7 @@
 var BitStream = require('./BitStream');
 var Huffman = require('./huffman');
+var util = require('./util');
+var extractBuffer = util.extractBuffer;
 module.exports = function(p) {
     var dota = p.dota;
     //contains some useful data for entity parsing
@@ -16,7 +18,7 @@ module.exports = function(p) {
     });
     p.on("CDemoSendTables", function(msg) {
         //extract data
-        var buf = new Buffer(msg.data.toBuffer());
+        var buf = extractBuffer(msg.data);
         var bs = BitStream(buf);
         //first bytes are a varuint
         var size = bs.readVarUInt();
@@ -81,7 +83,7 @@ module.exports = function(p) {
     });
     p.on("CSVCMsg_PacketEntities", function(msg) {
         //packet entities are contained in a buffer in this packet
-        var buf = new Buffer(msg.entity_data.toBuffer());
+        var buf = extractBuffer(msg.entity_data);
         var bs = BitStream(buf);
         var index = -1;
         return;

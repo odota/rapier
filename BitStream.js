@@ -2,12 +2,12 @@
  * Converts a given buffer of bytes to a stream of bits and provides methods for reading individual bits (non-aligned reads)
  **/
 //var Long = require('long');
-//accepts a native buffer object
+//accepts a native buffer object or a bytebuffer
 module.exports = function(buf) {
     var ret = {
-        offset: 0,
-        limit: buf.length * 8,
-        bytes: buf,
+        offset: buf.offset ? buf.offset * 8 : 0,
+        limit: buf.limit ? buf.limit * 8 : buf.length * 8,
+        bytes: buf.buffer || buf,
         readBits: readBits,
         readBuffer: readBuffer,
         readBoolean: readBoolean,

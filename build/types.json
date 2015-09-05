@@ -83,9 +83,7 @@
     "144": "CUserMessageAudioParameter",
     "145": "CUserMessageParticleManager",
     "146": "CUserMessageHudError",
-    "147": "CUserMessageCustomGameEvent_ClientToServer",
-    "148": "CUserMessageCustomGameEvent_ServerToClient",
-    "149": "CUserMessageTrackedControllerInput_ClientToServer",
+    "148": "CUserMessageCustomGameEvent",
     "200": "CMsgVDebugGameSessionIDEvent",
     "201": "CMsgPlaceDecalEvent",
     "202": "CMsgClearWorldDecalsEvent",
@@ -186,7 +184,8 @@
     "549": "CDOTAUserMsg_CustomHudElement_Modify",
     "550": "CDOTAUserMsg_CustomHudElement_Destroy",
     "551": "CDOTAUserMsg_CompendiumState",
-    "552": "CDOTAUserMsg_ProjectionAbility"
+    "552": "CDOTAUserMsg_ProjectionAbility",
+    "553": "CDOTAUserMsg_ProjectionEvent"
   },
   "dems": {
     "0": "CDemoStop",
@@ -644,7 +643,8 @@
     "345": "DOTA_CM_AbilityStartUse",
     "346": "DOTA_CM_ChallengeSelect",
     "347": "DOTA_CM_ChallengeReroll",
-    "348": "DOTA_CM_ClickedBuff"
+    "348": "DOTA_CM_ClickedBuff",
+    "349": "DOTA_CM_CoinWager"
   },
   "ESourceEngine": {
     "0": "k_ESE_Source1",
@@ -1096,8 +1096,6 @@
     "7505": "k_EMsgGCPracticeLobbyToggleBroadcastChannelCameramanStatus",
     "7506": "k_EMsgGCToGCCreateWeekendTourneyRequest",
     "7507": "k_EMsgGCToGCCreateWeekendTourneyResponse",
-    "7508": "k_EMsgGCHeroPickStatsRequest",
-    "7509": "k_EMsgGCHeroPickStatsResponse",
     "7510": "k_EMsgGCToGCCreateGenericTeamsRequest",
     "7511": "k_EMsgGCToGCCreateGenericTeamsResponse",
     "7512": "k_EMsgSQLLaunchOneWeekendTourney",
@@ -1185,7 +1183,16 @@
     "7596": "k_EMsgServerToGCHoldEventPoints",
     "7597": "k_EMsgSignOutReleaseEventPointHolds",
     "7598": "k_EMsgGCToGCChatNewUserSession",
+    "7599": "k_EMsgClientToGCGetLeagueSeries",
+    "7600": "k_EMsgClientToGCGetLeagueSeriesResponse",
+    "7601": "k_EMsgSQLGCToGCSignoutUpdateLeagueSchedule",
     "7602": "k_EMsgGCToServerUpdateBroadcastCheers",
+    "7603": "k_EMsgClientToGCApplyGemCombiner",
+    "7604": "k_EMsgClientToGCCreateStaticRecipe",
+    "7605": "k_EMsgClientToGCCreateStaticRecipeResponse",
+    "7606": "k_EMsgClientToGCGetAllHeroOrder",
+    "7607": "k_EMsgClientToGCGetAllHeroOrderResponse",
+    "7608": "k_EMsgSQLGCToGCGrantBadgePoints",
     "8001": "k_EMsgGCDev_GrantWarKill",
     "8002": "k_EMsgClientToGCCreateTeamShowcase",
     "8003": "k_EMsgGCToClientTeamShowcaseCreateResult",
@@ -1224,7 +1231,6 @@
     "8036": "k_EMsgClientToGCTopLeagueMatchesRequest",
     "8037": "k_EMsgClientToGCTopFriendMatchesRequest",
     "8038": "k_EMsgGCToClientTopMatchesResponse",
-    "8039": "k_EMsgClientToGCTopPubMatchesRequest",
     "8040": "k_EMsgGCToClientProfileCardStatsUpdated",
     "8041": "k_EMsgServerToGCRealtimeStats",
     "8042": "k_EMsgGCToServerRealtimeStatsStartStop",
@@ -1239,7 +1245,10 @@
     "8053": "k_EMsgCustomGameClientFinishedLoading",
     "8054": "k_EMsgGCPracticeLobbyCloseBroadcastChannel",
     "8055": "k_EMsgGCStartFindingMatchResponse",
-    "8056": "k_EMsgSQLGCToGCUpdateHeroMMR"
+    "8056": "k_EMsgSQLGCToGCUpdateHeroMMR",
+    "8057": "k_EMsgSQLGCToGCGrantAccountFlag",
+    "8058": "k_EMsgGCToGCGetAccountFlags",
+    "8059": "k_EMsgGCToGCGetAccountFlagsResponse"
   },
   "DOTA_GameMode": {
     "0": "DOTA_GAMEMODE_NONE",
@@ -1408,7 +1417,8 @@
     "0": "k_EIngameEvent_OraclePA",
     "1": "k_EIngameEvent_CNY2015",
     "2": "k_EIngameEvent_CNY2015_PreBeast",
-    "3": "k_EIngameEvent_TI5"
+    "3": "k_EIngameEvent_TI5",
+    "4": "k_EIngameEvent_FM2015"
   },
   "LobbyDotaTVDelay": {
     "0": "LobbyDotaTV_10",
@@ -1547,27 +1557,6 @@
     "5": "k_ETournamentNodeState_B_Won",
     "6": "k_ETournamentNodeState_Canceled"
   },
-  "DOTAChatChannelType_t": {
-    "0": "DOTAChannelType_Regional",
-    "1": "DOTAChannelType_Custom",
-    "2": "DOTAChannelType_Party",
-    "3": "DOTAChannelType_Lobby",
-    "4": "DOTAChannelType_Team",
-    "5": "DOTAChannelType_Guild",
-    "6": "DOTAChannelType_Fantasy",
-    "7": "DOTAChannelType_Whisper",
-    "8": "DOTAChannelType_Console",
-    "9": "DOTAChannelType_Tab",
-    "10": "DOTAChannelType_Invalid",
-    "11": "DOTAChannelType_GameAll",
-    "12": "DOTAChannelType_GameAllies",
-    "13": "DOTAChannelType_GameSpectator",
-    "14": "DOTAChannelType_GameCoaching"
-  },
-  "DOTA_WatchReplayType": {
-    "0": "DOTA_WATCH_REPLAY_NORMAL",
-    "1": "DOTA_WATCH_REPLAY_HIGHLIGHTS"
-  },
   "DOTA_2013PassportSelectionIndices": {
     "0": "PP13_SEL_ALLSTAR_PLAYER_0",
     "1": "PP13_SEL_ALLSTAR_PLAYER_1",
@@ -1665,6 +1654,29 @@
     "93": "PP13_SEL_SOLO_5",
     "94": "PP13_SEL_SOLO_6",
     "95": "PP13_SEL_SOLO_7"
+  },
+  "DOTAChatChannelType_t": {
+    "0": "DOTAChannelType_Regional",
+    "1": "DOTAChannelType_Custom",
+    "2": "DOTAChannelType_Party",
+    "3": "DOTAChannelType_Lobby",
+    "4": "DOTAChannelType_Team",
+    "5": "DOTAChannelType_Guild",
+    "6": "DOTAChannelType_Fantasy",
+    "7": "DOTAChannelType_Whisper",
+    "8": "DOTAChannelType_Console",
+    "9": "DOTAChannelType_Tab",
+    "10": "DOTAChannelType_Invalid",
+    "11": "DOTAChannelType_GameAll",
+    "12": "DOTAChannelType_GameAllies",
+    "13": "DOTAChannelType_GameSpectator",
+    "14": "DOTAChannelType_GameCoaching",
+    "15": "DOTAChannelType_Cafe",
+    "16": "DOTAChannelType_CustomGame"
+  },
+  "DOTA_WatchReplayType": {
+    "0": "DOTA_WATCH_REPLAY_NORMAL",
+    "1": "DOTA_WATCH_REPLAY_HIGHLIGHTS"
   },
   "EItemEditorReservationResult": {
     "1": "k_EItemEditorReservationResult_OK",
@@ -1786,8 +1798,6 @@
     "1077": "k_EMsgGCSetItemPositions",
     "1078": "k_EMsgGCApplyEggEssence",
     "1079": "k_EMsgGCNameEggEssenceResponse",
-    "1080": "k_EMsgGCUnlockItemStyle",
-    "1081": "k_EMsgGCUnlockItemStyleResponse",
     "1082": "k_EMsgGCFulfillDynamicRecipeComponent",
     "1083": "k_EMsgGCFulfillDynamicRecipeComponentResponse",
     "1084": "k_EMsgGCClientRequestMarketData",
@@ -1883,7 +1893,12 @@
     "2567": "k_EMsgGCToClientBundleUnpacked",
     "2568": "k_EMsgGCToClientStoreTransactionCompleted",
     "2569": "k_EMsgClientToGCEquipItems",
-    "2570": "k_EMsgClientToGCEquipItemsResponse"
+    "2570": "k_EMsgClientToGCEquipItemsResponse",
+    "2571": "k_EMsgClientToGCUnlockItemStyle",
+    "2572": "k_EMsgClientToGCUnlockItemStyleResponse",
+    "2573": "k_EMsgClientToGCSetItemInventoryCategory",
+    "2574": "k_EMsgClientToGCUnlockCrate",
+    "2575": "k_EMsgClientToGCUnlockCrateResponse"
   },
   "EGCMsgResponse": {
     "0": "k_EGCMsgResponseOK",
@@ -1895,17 +1910,6 @@
     "6": "k_EGCMsgResponseUnknownError",
     "7": "k_EGCMsgResponseNotLoggedOn",
     "8": "k_EGCMsgFailedToCreate"
-  },
-  "EUnlockStyle": {
-    "0": "k_UnlockStyle_Succeeded",
-    "1": "k_UnlockStyle_Failed_PreReq",
-    "2": "k_UnlockStyle_Failed_CantAfford",
-    "3": "k_UnlockStyle_Failed_CantCommit",
-    "4": "k_UnlockStyle_Failed_CantLockCache",
-    "5": "k_UnlockStyle_Failed_CantAffordAttrib",
-    "6": "k_UnlockStyle_Failed_CantAffordGem",
-    "7": "k_UnlockStyle_Failed_NoCompendiumLevel",
-    "8": "k_UnlockStyle_Failed_AlreadyUnlocked"
   },
   "EItemPurgatoryResponse_Finalize": {
     "0": "k_ItemPurgatoryResponse_Finalize_Succeeded",
@@ -2090,7 +2094,8 @@
     "549": "DOTA_UM_CustomHudElement_Modify",
     "550": "DOTA_UM_CustomHudElement_Destroy",
     "551": "DOTA_UM_CompendiumState",
-    "552": "DOTA_UM_ProjectionAbility"
+    "552": "DOTA_UM_ProjectionAbility",
+    "553": "DOTA_UM_ProjectionEvent"
   },
   "DOTA_CHAT_MESSAGE": {
     "0": "CHAT_MESSAGE_HERO_KILL",
@@ -2312,6 +2317,9 @@
     "71": "kPVLS_AllowCoachHearTeam",
     "72": "kPVLS_AllowSameTeam",
     "73": "kPVLS_AllowShowcase"
+  },
+  "EProjectionEvent": {
+    "0": "ePE_FirstBlood"
   },
   "EBaseGameEvents": {
     "200": "GE_VDebugGameSessionIDEvent",
@@ -2540,9 +2548,7 @@
     "144": "UM_AudioParameter",
     "145": "UM_ParticleManager",
     "146": "UM_HudError",
-    "147": "UM_CustomGameEvent_ClientToServer",
-    "148": "UM_CustomGameEvent_ServerToClient",
-    "149": "UM_TrackedControllerInput_ClientToServer",
+    "148": "UM_CustomGameEvent",
     "200": "UM_MAX_BASE"
   },
   "EBaseEntityMessages": {
