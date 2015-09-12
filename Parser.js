@@ -78,9 +78,10 @@ var Parser = function(input, options) {
     };
     /**
      * Given the current state of string tables and class info, updates the baseline state.
-     * This is state that is maintained throughout the parse and is used in parsing entities.
+     * This is state that is maintained throughout the parse and is used as fallback when fetching entity properties.
      **/
     p.updateInstanceBaseline = function updateInstanceBaseline() {
+        //TODO
         // We can't update the instancebaseline until we have class info.
         if (!Object.keys(p.classInfo)) {
             return;
@@ -127,7 +128,6 @@ var Parser = function(input, options) {
             		_debugfl(1, "Parsing entity baseline %v", serializer[0].Name)
             		r := NewReader(item.Value)
             		p.ClassBaselines[classId] = ReadProperties(r, serializer[0])
-            
             		// Inline test the baselines
             		if testLevel >= 1 && r.remBits() > 8 {
             			_panicf("Too many bits remaining in baseline %v, %v", serializer[0].Name, r.remBits())

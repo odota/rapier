@@ -833,82 +833,75 @@ module.exports = function(p) {
     }));
 
     function PlusOne(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += 1
+        fp.index[fp.index.length - 1] += 1
     }
 
     function PlusTwo(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += 2
+        fp.index[fp.index.length - 1] += 2
     }
 
     function PlusThree(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += 3
+        fp.index[fp.index.length - 1] += 3
     }
 
     function PlusFour(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += 4
+        fp.index[fp.index.length - 1] += 4
     }
 
     function PlusN(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += int32(r.readUBitVarFP()) + 5
+        //TODO implement reader
+        fp.index[fp.index.length - 1] += int32(r.readUBitVarFP()) + 5
     }
 
     function PushOneLeftDeltaZeroRightZero(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index = append(fp.index, 0)
+        fp.index.push(0);
     }
 
     function PushOneLeftDeltaZeroRightNonZero(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
+        //TODO
         fp.index = append(fp.index, int32(r.readUBitVarFP()))
     }
 
     function PushOneLeftDeltaOneRightZero(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += 1
-        fp.index = append(fp.index, 0)
+        fp.index[fp.index.length - 1] += 1
+        fp.index.push(0);
     }
 
     function PushOneLeftDeltaOneRightNonZero(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += 1
+        fp.index[fp.index.length - 1] += 1;
+        //TODO
         fp.index = append(fp.index, int32(r.readUBitVarFP()))
     }
 
     function PushOneLeftDeltaNRightZero(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += int32(r.readUBitVarFP())
-        fp.index = append(fp.index, 0)
+        //TODO
+        fp.index[fp.index.length - 1] += int32(r.readUBitVarFP())
+        fp.index.push(0);
     }
 
     function PushOneLeftDeltaNRightNonZero(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += int32(r.readUBitVarFP()) + 2
+        //TODO
+        fp.index[fp.index.length - 1] += int32(r.readUBitVarFP()) + 2
         fp.index = append(fp.index, int32(r.readUBitVarFP()) + 1)
     }
 
     function PushOneLeftDeltaNRightNonZeroPack6Bits(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += int32(r.readBits(3)) + 2
+        //TODO
+       fp.index[fp.index.length - 1] += int32(r.readBits(3)) + 2
         fp.index = append(fp.index, int32(r.readBits(3)) + 1)
     }
 
     function PushOneLeftDeltaNRightNonZeroPack8Bits(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index[len(fp.index) - 1] += int32(r.readBits(4)) + 2
+        //TODO
+        fp.index[fp.index.length - 1] += int32(r.readBits(4)) + 2
         fp.index = append(fp.index, int32(r.readBits(4)) + 1)
     }
 
     function PushTwoLeftDeltaZero(bs, fp) {
-        _debugfl(10, "Name: %s", fp.parent.Name)
-        fp.index = append(fp.index, 0)
-        fp.index = append(fp.index, 0)
+	    fp.index = append(fp.index, int32(r.readUBitVarFP()))
+	    fp.index = append(fp.index, int32(r.readUBitVarFP()))
     }
-
+//TODO rest of these
     function PushTwoLeftDeltaOne(bs, fp) {
         _debugfl(10, "Name: %s", fp.parent.Name)
         fp.index[len(fp.index) - 1]++
