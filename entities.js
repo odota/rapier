@@ -88,7 +88,6 @@ module.exports = function(p) {
         var bs = BitStream(buf);
         var index = -1;
         return;
-        //TODO optimize by only processing the first full packet (check is_delta)
         //read as many entries as the message says to
         for (var i = 0; i < msg.updated_entries; i++) {
             // Read the index delta from the buffer.
@@ -831,7 +830,7 @@ module.exports = function(p) {
     var huf = Huffman(fieldpathOperations.map(function(f) {
         return f.weight;
     }));
-
+//TODO verify the fieldops are correct
     function PlusOne(bs, fp) {
         fp.index[fp.index.length - 1] += 1
     }
