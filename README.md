@@ -11,6 +11,11 @@ Why JavaScript?
 * No JS replay parsing library yet
 * Makes the YASP stack 100% JavaScript
 
+Notes
+----
+* Rapier does not handle entities yet.  Everything else (of interest) should be supported.
+* Performance of the library is relatively poor compared to other implementations.  Part of this is likely due to lack of optimization and partly due to JS lacking types and slow bitwise operations.  In exchange, you can develop and run your application fully in JavaScript.
+
 API
 ----
 * Rapier is designed to offer a very simple API.
