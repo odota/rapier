@@ -32,4 +32,3 @@ wget https://raw.githubusercontent.com/SteamDatabase/GameTracking/master/Protobu
 wget https://raw.githubusercontent.com/SteamDatabase/GameTracking/master/Protobufs/dota/te.proto
 wget https://raw.githubusercontent.com/SteamDatabase/GameTracking/master/Protobufs/dota/toolevents.proto
 wget https://raw.githubusercontent.com/SteamDatabase/GameTracking/master/Protobufs/dota/usermessages.proto
-p

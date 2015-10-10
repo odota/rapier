@@ -22,12 +22,12 @@ p.on("CUserMessageSayText2", function(data) {
     console.log(data);
 });
 //chat wheel
-p.on("CDOTAUserMsg_ChatWheel", function(data){
+p.on("CDOTAUserMsg_ChatWheel", function(data) {
     data.chat_message = types["EDOTAChatWheelMessage"][data.chat_message];
     //console.log(data);
 });
 //overhead events
-p.on("CDOTAUserMsg_OverheadEvent", function(data){
+p.on("CDOTAUserMsg_OverheadEvent", function(data) {
     //console.log(data);
 });
 //map pings
@@ -40,7 +40,35 @@ p.on("CDOTAUserMsg_ChatEvent", function(data) {
     data.name = types.DOTA_CHAT_MESSAGE[data.type];
     //console.log(data);
 });
+p.on("CDOTAUserMsg_CombatLogDataHLTV", function(data) {
+    data.type = types.DOTA_COMBATLOG_TYPES[data.type] || data.type;
+    //translate the entries using stringtable
+    //translate the following fields with the stringtable        
+    data.damage_source_name = getStringFromCombatLogNames(data.damage_source_name);
+    data.target_name = getStringFromCombatLogNames(data.target_name);
+    data.attacker_name = getStringFromCombatLogNames(data.attacker_name);
+    data.inflictor_name = getStringFromCombatLogNames(data.inflictor_name);
+    data.target_source_name = getStringFromCombatLogNames(data.target_source_name);
+    data.value_name = getStringFromCombatLogNames(data.value);
+    for (var key in data) {
+        if (data[key] === null) {
+            delete data[key];
+        }
+    }
+    //console.error(data);
+    if (data.type === "DOTA_COMBATLOG_PLAYERSTATS"){
+        console.error(data);
+    }
+    console.log(JSON.stringify(data));
+});
+
+function getStringFromCombatLogNames(value) {
+    var combatLogNames = stringTables.tablesByName["CombatLogNames"];
+    return combatLogNames.string_data[value] ? combatLogNames.string_data[value].key : value;
+}
 //gameevents
+//NO LONGER PRESENT IN REPLAYS AFTER 2015-10-9
+/*
 p.on("CMsgSource1LegacyGameEvent", function(data) {
     //get the event name from descriptor
     data.event_name = gameEventDescriptors[data.eventid].name;
@@ -78,6 +106,7 @@ p.on("CMsgSource1LegacyGameEvent", function(data) {
         }
     }
 });
+*/
 //every tick
 /*
 p.on("CNETMsg_Tick", function(data) {
@@ -104,7 +133,6 @@ p.on("*", function(data, proto_name) {
     counts[proto_name] = counts[proto_name] ? counts[proto_name] + 1 : 1;
 });
 */
-
 var counts = {};
 console.time('parse');
 //start takes a callback function that is called when the parse completes

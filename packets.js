@@ -37,7 +37,8 @@ module.exports = function(p) {
             "CSVCMsg_UpdateStringTable": -10,
             "CNETMsg_SpawnGroup_Load": -10,
             "CSVCMsg_PacketEntities": 5,
-            "CMsgSource1LegacyGameEvent": 10
+            "CMsgSource1LegacyGameEvent": 10,
+            "CMsgDOTACombatLogEntryHLTV": 10
         };
         //the inner data of a CDemoPacket is raw bits (no longer byte aligned!)
         var packets = [];
@@ -83,7 +84,7 @@ module.exports = function(p) {
                     }
                 }
                 else {
-                    console.error("no proto definition for packet name %s", name);
+                    //console.error("no proto definition for packet name %s", name);
                 }
             }
             else {

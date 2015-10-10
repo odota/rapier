@@ -1,1 +1,1 @@
-node `dirname "$0"`/examples/server.js < ../yasp/testfiles/1698148651_source2.dem
+node `dirname "$0"`/examples/server.js < ../yasp/1855408730.dem

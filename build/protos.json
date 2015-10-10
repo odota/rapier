@@ -2438,6 +2438,47 @@
             ]
         },
         {
+            "name": "CMsgClientPingData",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "fixed32",
+                    "name": "relay_codes",
+                    "id": 4,
+                    "options": {
+                        "packed": true
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "relay_pings",
+                    "id": 5,
+                    "options": {
+                        "packed": true
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "region_codes",
+                    "id": 8,
+                    "options": {
+                        "packed": true
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "region_pings",
+                    "id": 9,
+                    "options": {
+                        "packed": true
+                    }
+                }
+            ]
+        },
+        {
             "name": "CMsgInviteToParty",
             "fields": [
                 {
@@ -2463,6 +2504,12 @@
                     "type": "bool",
                     "name": "as_coach",
                     "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgClientPingData",
+                    "name": "ping_data",
+                    "id": 5
                 }
             ]
         },
@@ -2544,6 +2591,12 @@
                     "type": "string",
                     "name": "game_language_name",
                     "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgClientPingData",
+                    "name": "ping_data",
+                    "id": 8
                 }
             ]
         },
@@ -4285,6 +4338,62 @@
                     "type": "uint64",
                     "name": "item_item_id",
                     "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "item_socket_id",
+                    "id": 3,
+                    "options": {
+                        "default": 65535
+                    }
+                }
+            ]
+        },
+        {
+            "name": "CMsgExtractGemsResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "item_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "EExtractGems",
+                    "name": "response",
+                    "id": 2,
+                    "options": {
+                        "default": "k_ExtractGems_Succeeded"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EExtractGems",
+                    "values": [
+                        {
+                            "name": "k_ExtractGems_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_ExtractGems_Failed_ToolIsInvalid",
+                            "id": 1
+                        },
+                        {
+                            "name": "k_ExtractGems_Failed_ItemIsInvalid",
+                            "id": 2
+                        },
+                        {
+                            "name": "k_ExtractGems_Failed_ToolCannotRemoveGem",
+                            "id": 3
+                        },
+                        {
+                            "name": "k_ExtractGems_Failed_FailedToRemoveGem",
+                            "id": 4
+                        }
+                    ]
                 }
             ]
         },
@@ -4325,6 +4434,38 @@
                     "type": "uint32",
                     "name": "updated_socket_index",
                     "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "EAddSocket",
+                    "name": "response",
+                    "id": 3,
+                    "options": {
+                        "default": "k_AddSocket_Succeeded"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EAddSocket",
+                    "values": [
+                        {
+                            "name": "k_AddSocket_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_AddSocket_Failed_ToolIsInvalid",
+                            "id": 1
+                        },
+                        {
+                            "name": "k_AddSocket_Failed_ItemCannotBeSocketed",
+                            "id": 2
+                        },
+                        {
+                            "name": "k_AddSocket_Failed_FailedToAddSocket",
+                            "id": 3
+                        }
+                    ]
                 }
             ]
         },
@@ -4376,6 +4517,54 @@
                     "type": "uint32",
                     "name": "updated_socket_index",
                     "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "EAddGem",
+                    "name": "response",
+                    "id": 3,
+                    "options": {
+                        "default": "k_AddGem_Succeeded"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EAddGem",
+                    "values": [
+                        {
+                            "name": "k_AddGem_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_AddGem_Failed_GemIsInvalid",
+                            "id": 1
+                        },
+                        {
+                            "name": "k_AddGem_Failed_ItemIsInvalid",
+                            "id": 2
+                        },
+                        {
+                            "name": "k_AddGem_Failed_FailedToAddGem",
+                            "id": 3
+                        },
+                        {
+                            "name": "k_AddGem_Failed_InvalidGemTypeForSocket",
+                            "id": 4
+                        },
+                        {
+                            "name": "k_AddGem_Failed_InvalidGemTypeForHero",
+                            "id": 5
+                        },
+                        {
+                            "name": "k_AddGem_Failed_InvalidGemTypeForSlot",
+                            "id": 6
+                        },
+                        {
+                            "name": "k_AddGem_Failed_SocketContainsUnremovableGem",
+                            "id": 7
+                        }
+                    ]
                 }
             ]
         },
@@ -4393,6 +4582,47 @@
                     "type": "uint32",
                     "name": "socket_index",
                     "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgResetStrangeGemCountResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResetGem",
+                    "name": "response",
+                    "id": 1,
+                    "options": {
+                        "default": "k_ResetGem_Succeeded"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResetGem",
+                    "values": [
+                        {
+                            "name": "k_ResetGem_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_ResetGem_Failed_FailedToResetGem",
+                            "id": 1
+                        },
+                        {
+                            "name": "k_ResetGem_Failed_ItemIsInvalid",
+                            "id": 2
+                        },
+                        {
+                            "name": "k_ResetGem_Failed_InvalidSocketId",
+                            "id": 3
+                        },
+                        {
+                            "name": "k_ResetGem_Failed_SocketCannotBeReset",
+                            "id": 4
+                        }
+                    ]
                 }
             ]
         },
@@ -6327,6 +6557,35 @@
             ]
         },
         {
+            "name": "CSVCMsg_HLTVStatus",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "master",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "int32",
+                    "name": "clients",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "int32",
+                    "name": "slots",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "int32",
+                    "name": "proxies",
+                    "id": 4
+                }
+            ]
+        },
+        {
             "name": "CSVCMsg_CmdKeyValues",
             "fields": [
                 {
@@ -6843,6 +7102,12 @@
                     "type": "bytes",
                     "name": "auth_steam",
                     "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "challenge_context",
+                    "id": 9
                 }
             ]
         },
@@ -7613,6 +7878,65 @@
             ]
         },
         {
+            "name": "CDOTAMsg_UnitOrder",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "sint32",
+                    "name": "issuer",
+                    "id": 1,
+                    "options": {
+                        "default": -1
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "dotaunitorder_t",
+                    "name": "order_type",
+                    "id": 2,
+                    "options": {
+                        "default": "DOTA_UNIT_ORDER_NONE"
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "int32",
+                    "name": "units",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "int32",
+                    "name": "target_index",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "int32",
+                    "name": "ability_index",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgVector",
+                    "name": "position",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "queue",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "int32",
+                    "name": "sequence_number",
+                    "id": 8
+                }
+            ]
+        },
+        {
             "name": "CDOTAClientMsg_MapPing",
             "fields": [
                 {
@@ -8236,6 +8560,17 @@
                     "rule": "optional",
                     "type": "uint32",
                     "name": "wager_amount",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CDOTAClientMsg_ExecuteOrders",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "CDOTAMsg_UnitOrder",
+                    "name": "orders",
                     "id": 1
                 }
             ]
@@ -8881,6 +9216,18 @@
                     "type": "bytes",
                     "name": "save_game_key",
                     "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "fixed32",
+                    "name": "item_schema_crc",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "items_game_url",
+                    "id": 8
                 }
             ],
             "messages": [
@@ -9529,6 +9876,12 @@
                     "type": "uint32",
                     "name": "account_flags",
                     "id": 69
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "play_time_level",
+                    "id": 70
                 }
             ]
         },
@@ -9549,6 +9902,24 @@
                     "type": "bool",
                     "name": "is_coach",
                     "id": 2
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "region_ping_codes",
+                    "id": 4,
+                    "options": {
+                        "packed": true
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "region_ping_times",
+                    "id": 5,
+                    "options": {
+                        "packed": true
+                    }
                 }
             ]
         },
@@ -9719,7 +10090,7 @@
                 },
                 {
                     "rule": "repeated",
-                    "type": "EIngameEvent",
+                    "type": "EEvent",
                     "name": "active_ingame_events",
                     "id": 39
                 },
@@ -9740,6 +10111,12 @@
                     "type": "CSODOTAPartyInvite",
                     "name": "recv_invites",
                     "id": 42
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_flags",
+                    "id": 43
                 }
             ],
             "enums": [
@@ -10854,7 +11231,7 @@
                 },
                 {
                     "rule": "repeated",
-                    "type": "EIngameEvent",
+                    "type": "EEvent",
                     "name": "active_ingame_events",
                     "id": 69
                 },
@@ -10923,6 +11300,18 @@
                     "type": "fixed32",
                     "name": "custom_game_timestamp",
                     "id": 80
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint64",
+                    "name": "previous_series_matches",
+                    "id": 81
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "previous_match_override",
+                    "id": 82
                 }
             ],
             "messages": [
@@ -12290,6 +12679,30 @@
                     "type": "bool",
                     "name": "hidden_modifier",
                     "id": 36
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_target_building",
+                    "id": 37
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "neutral_camp_type",
+                    "id": 38
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "rune_type",
+                    "id": 39
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "assist_players",
+                    "id": 40
                 }
             ]
         },
@@ -12325,6 +12738,12 @@
                     "type": "uint32",
                     "name": "event_points",
                     "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "event_id",
+                    "id": 6
                 }
             ],
             "messages": [
@@ -13222,6 +13641,12 @@
                             "type": "float",
                             "name": "y",
                             "id": 8
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "bool",
+                            "name": "destroyed",
+                            "id": 9
                         }
                     ]
                 },
@@ -13717,6 +14142,12 @@
                             "type": "float",
                             "name": "y",
                             "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "bool",
+                            "name": "destroyed",
+                            "id": 8
                         }
                     ]
                 },
@@ -13788,6 +14219,12 @@
                     "type": "PlayerInfo",
                     "name": "player_infos",
                     "id": 1
+                },
+                {
+                    "rule": "repeated",
+                    "type": "RegionLeaderboard",
+                    "name": "leaderboards",
+                    "id": 2
                 }
             ],
             "messages": [
@@ -13847,6 +14284,29 @@
                             "type": "bool",
                             "name": "is_locked",
                             "id": 9
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "bool",
+                            "name": "is_pro",
+                            "id": 10
+                        }
+                    ]
+                },
+                {
+                    "name": "RegionLeaderboard",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "division",
+                            "id": 1
+                        },
+                        {
+                            "rule": "repeated",
+                            "type": "uint32",
+                            "name": "account_ids",
+                            "id": 2
                         }
                     ]
                 }
@@ -17212,6 +17672,12 @@
                     "type": "string",
                     "name": "game_language_name",
                     "id": 11
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgClientPingData",
+                    "name": "ping_data",
+                    "id": 12
                 }
             ]
         },
@@ -17265,195 +17731,6 @@
                     "type": "uint32",
                     "name": "declined_ids",
                     "id": 3
-                }
-            ]
-        },
-        {
-            "name": "CSourceTVGame",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "source_tv_public_addr",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "source_tv_private_addr",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "source_tv_port",
-                    "id": 3
-                },
-                {
-                    "rule": "repeated",
-                    "type": "Player",
-                    "name": "good_players",
-                    "id": 14
-                },
-                {
-                    "rule": "repeated",
-                    "type": "Player",
-                    "name": "bad_players",
-                    "id": 15
-                },
-                {
-                    "rule": "repeated",
-                    "type": "Player",
-                    "name": "other_players",
-                    "id": 16
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "game_name",
-                    "id": 7
-                },
-                {
-                    "rule": "repeated",
-                    "type": "CLobbyTeamDetails",
-                    "name": "team_details",
-                    "id": 9
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "num_spectators",
-                    "id": 10
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "tournament_id",
-                    "id": 11
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "tournament_game_id",
-                    "id": 12
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "tower_state",
-                    "id": 13
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "tv_broadcast_time",
-                    "id": 17
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "game_time",
-                    "id": 18
-                },
-                {
-                    "rule": "optional",
-                    "type": "fixed64",
-                    "name": "server_steamid",
-                    "id": 19
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "leagueid",
-                    "id": 20
-                },
-                {
-                    "rule": "optional",
-                    "type": "DOTA_GameMode",
-                    "name": "game_mode",
-                    "id": 21,
-                    "options": {
-                        "default": "DOTA_GAMEMODE_NONE"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "lobby_type",
-                    "id": 22
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "custom_game_id",
-                    "id": 24
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "average_rank",
-                    "id": 25
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "radiant_kills",
-                    "id": 26
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "dire_kills",
-                    "id": 27
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "barracks_state",
-                    "id": 28
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "group_id",
-                    "id": 29
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "engine",
-                    "id": 31
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "broadcast_delay",
-                    "id": 32
-                }
-            ],
-            "messages": [
-                {
-                    "name": "Player",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "fixed64",
-                            "name": "steam_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "name",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "hero_id",
-                            "id": 3
-                        }
-                    ]
                 }
             ]
         },
@@ -17567,70 +17844,12 @@
                     "type": "float",
                     "name": "last_update_time",
                     "id": 18
-                }
-            ]
-        },
-        {
-            "name": "CMsgSourceTVGamesResponse",
-            "fields": [
-                {
-                    "rule": "repeated",
-                    "type": "CSourceTVGame",
-                    "name": "games",
-                    "id": 1
                 },
                 {
                     "rule": "optional",
-                    "type": "uint32",
-                    "name": "num_total_games",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CMsgFindSourceTVGames",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "search_key",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "start",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "num_games",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "leagueid",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "heroid",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "team_game",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "custom_game_id",
-                    "id": 10
+                    "type": "int32",
+                    "name": "radiant_lead",
+                    "id": 19
                 }
             ]
         },
@@ -17752,37 +17971,60 @@
             ]
         },
         {
-            "name": "CMsgGCToClientTopMatchesResponse",
+            "name": "CMsgClientToGCTopLeagueMatchesRequest",
+            "fields": []
+        },
+        {
+            "name": "CMsgClientToGCTopFriendMatchesRequest",
+            "fields": []
+        },
+        {
+            "name": "CMsgClientToGCMatchesMinimalRequest",
             "fields": [
                 {
-                    "rule": "optional",
-                    "type": "Type",
-                    "name": "type",
-                    "id": 1,
-                    "options": {
-                        "default": "LEAGUES"
-                    }
-                },
+                    "rule": "repeated",
+                    "type": "uint64",
+                    "name": "match_ids",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCMatchesMinimalResponse",
+            "fields": [
                 {
                     "rule": "repeated",
-                    "type": "CMsgDOTAMatch",
+                    "type": "CMsgDOTAMatchMinimal",
+                    "name": "matches",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "last_match",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCToClientTopLeagueMatchesResponse",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "CMsgDOTAMatchMinimal",
                     "name": "matches",
                     "id": 2
                 }
-            ],
-            "enums": [
+            ]
+        },
+        {
+            "name": "CMsgGCToClientTopFriendMatchesResponse",
+            "fields": [
                 {
-                    "name": "Type",
-                    "values": [
-                        {
-                            "name": "LEAGUES",
-                            "id": 1
-                        },
-                        {
-                            "name": "FRIENDS",
-                            "id": 2
-                        }
-                    ]
+                    "rule": "repeated",
+                    "type": "CMsgDOTAMatchMinimal",
+                    "name": "matches",
+                    "id": 1
                 }
             ]
         },
@@ -18129,6 +18371,12 @@
                     "type": "fixed32",
                     "name": "custom_game_timestamp",
                     "id": 37
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "previous_match_override",
+                    "id": 38
                 }
             ]
         },
@@ -18497,6 +18745,12 @@
                     "type": "uint32",
                     "name": "lan_host_ping_to_server_region",
                     "id": 18
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_id",
+                    "id": 19
                 }
             ],
             "messages": [
@@ -18813,7 +19067,7 @@
                 {
                     "rule": "optional",
                     "type": "uint32",
-                    "name": "server_region",
+                    "name": "legacy_server_region",
                     "id": 1
                 },
                 {
@@ -18842,14 +19096,20 @@
                 },
                 {
                     "rule": "repeated",
-                    "type": "RegionPing",
-                    "name": "region_pings",
+                    "type": "LegacyRegionPing",
+                    "name": "legacy_region_pings",
                     "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgClientPingData",
+                    "name": "ping_data",
+                    "id": 7
                 }
             ],
             "messages": [
                 {
-                    "name": "RegionPing",
+                    "name": "LegacyRegionPing",
                     "fields": [
                         {
                             "rule": "optional",
@@ -19688,6 +19948,158 @@
             ]
         },
         {
+            "name": "CMsgDOTAMatchMinimal",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "match_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "fixed32",
+                    "name": "start_time",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "duration",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "DOTA_GameMode",
+                    "name": "game_mode",
+                    "id": 4,
+                    "options": {
+                        "default": "DOTA_GAMEMODE_NONE"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "winning_team",
+                    "id": 5
+                },
+                {
+                    "rule": "repeated",
+                    "type": "Player",
+                    "name": "players",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "League",
+                    "name": "league",
+                    "id": 7
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Player",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "hero_id",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "kills",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "deaths",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "assists",
+                            "id": 5
+                        },
+                        {
+                            "rule": "repeated",
+                            "type": "uint32",
+                            "name": "items",
+                            "id": 6
+                        }
+                    ]
+                },
+                {
+                    "name": "League",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "league_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "radiant_team_id",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "radiant_team_name",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "fixed64",
+                            "name": "radiant_team_logo",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "dire_team_id",
+                            "id": 5
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "dire_team_name",
+                            "id": 6
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "fixed64",
+                            "name": "dire_team_logo",
+                            "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "series_type",
+                            "id": 8
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "series_game",
+                            "id": 9
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "name": "CMsgDOTAMatchHistoryFilter",
             "fields": [
                 {
@@ -20173,7 +20585,7 @@
                             "id": 62
                         },
                         {
-                            "name": "TI2015_POINTS_EARNED",
+                            "name": "EVENT_POINTS_EARNED",
                             "id": 63
                         },
                         {
@@ -20183,6 +20595,14 @@
                         {
                             "name": "COMPETITIVE_MM_MMR_TOO_HIGH_S2",
                             "id": 65
+                        },
+                        {
+                            "name": "LIMITED_USER_CHAT",
+                            "id": 66
+                        },
+                        {
+                            "name": "EVENT_PREMIUM_POINTS_EARNED",
+                            "id": 67
                         }
                     ]
                 }
@@ -21524,6 +21944,73 @@
                     "options": {
                         "default": -1
                     }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "share_profile_account_id",
+                    "id": 15
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "channel_user_id",
+                    "id": 16
+                },
+                {
+                    "rule": "optional",
+                    "type": "DiceRoll",
+                    "name": "dice_roll",
+                    "id": 17
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "share_party_id",
+                    "id": 18
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "share_lobby_id",
+                    "id": 19
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "share_lobby_custom_game_id",
+                    "id": 20
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "share_lobby_passkey",
+                    "id": 21
+                }
+            ],
+            "messages": [
+                {
+                    "name": "DiceRoll",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "int32",
+                            "name": "roll_min",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "int32",
+                            "name": "roll_max",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "int32",
+                            "name": "result",
+                            "id": 3
+                        }
+                    ]
                 }
             ]
         },
@@ -21541,6 +22028,12 @@
                     "type": "string",
                     "name": "persona_name",
                     "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "channel_user_id",
+                    "id": 3
                 }
             ]
         },
@@ -21576,6 +22069,83 @@
                     "type": "CMsgDOTAChatMember",
                     "name": "members",
                     "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "DOTAChatChannelType_t",
+                    "name": "channel_type",
+                    "id": 6,
+                    "options": {
+                        "default": "DOTAChannelType_Regional"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "Result",
+                    "name": "result",
+                    "id": 7,
+                    "options": {
+                        "default": "JOIN_SUCCESS"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "gc_initiated_join",
+                    "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "channel_user_id",
+                    "id": 9
+                }
+            ],
+            "enums": [
+                {
+                    "name": "Result",
+                    "values": [
+                        {
+                            "name": "JOIN_SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "INVALID_CHANNEL_TYPE",
+                            "id": 1
+                        },
+                        {
+                            "name": "ACCOUNT_NOT_FOUND",
+                            "id": 2
+                        },
+                        {
+                            "name": "ACH_FAILED",
+                            "id": 3
+                        },
+                        {
+                            "name": "USER_IN_TOO_MANY_CHANNELS",
+                            "id": 4
+                        },
+                        {
+                            "name": "RATE_LIMIT_EXCEEDED",
+                            "id": 5
+                        },
+                        {
+                            "name": "CHANNEL_FULL",
+                            "id": 6
+                        },
+                        {
+                            "name": "CHANNEL_FULL_OVERFLOWED",
+                            "id": 7
+                        },
+                        {
+                            "name": "FAILED_TO_ADD_USER",
+                            "id": 8
+                        },
+                        {
+                            "name": "CHANNEL_TYPE_DISABLED",
+                            "id": 9
+                        }
+                    ]
                 }
             ]
         },
@@ -21616,6 +22186,12 @@
                     "type": "fixed64",
                     "name": "steam_id",
                     "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "channel_user_id",
+                    "id": 4
                 }
             ]
         },
@@ -21633,6 +22209,12 @@
                     "type": "fixed64",
                     "name": "steam_id",
                     "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "channel_user_id",
+                    "id": 3
                 }
             ]
         },
@@ -21673,6 +22255,12 @@
                             "type": "string",
                             "name": "persona_name",
                             "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "channel_user_id",
+                            "id": 3
                         }
                     ]
                 }
@@ -21763,6 +22351,12 @@
                             "type": "string",
                             "name": "persona_name",
                             "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "channel_user_id",
+                            "id": 3
                         }
                     ]
                 }
@@ -21811,6 +22405,54 @@
                     "type": "uint32",
                     "name": "member_count",
                     "id": 3
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAChatRegionsEnabled",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "enable_all_regions",
+                    "id": 1
+                },
+                {
+                    "rule": "repeated",
+                    "type": "Region",
+                    "name": "enabled_regions",
+                    "id": 2
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Region",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "min_latitude",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "max_latitude",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "min_longitude",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "max_longitude",
+                            "id": 4
+                        }
+                    ]
                 }
             ]
         },
@@ -23086,6 +23728,28 @@
             ]
         },
         {
+            "name": "CMsgServerToGCMatchDetailsRequest",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "uint64",
+                    "name": "match_ids",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCToServerMatchDetailsResponse",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "CMsgDOTAMatch",
+                    "name": "matches",
+                    "id": 1
+                }
+            ]
+        },
+        {
             "name": "CMsgDOTAProfileRequest",
             "fields": [
                 {
@@ -23447,7 +24111,7 @@
                 },
                 {
                     "rule": "repeated",
-                    "type": "EIngameEvent",
+                    "type": "EEvent",
                     "name": "active_events",
                     "id": 25
                 },
@@ -23596,49 +24260,161 @@
             "fields": []
         },
         {
-            "name": "CLeague",
+            "name": "CDynamicLeagueData",
             "fields": [
                 {
                     "rule": "optional",
                     "type": "uint32",
-                    "name": "leagueid",
+                    "name": "league_id",
                     "id": 1
                 },
                 {
                     "rule": "optional",
-                    "type": "bool",
-                    "name": "live",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
                     "type": "fixed32",
-                    "name": "lastgametime",
-                    "id": 4
+                    "name": "last_match_time",
+                    "id": 2
                 },
                 {
                     "rule": "optional",
                     "type": "uint32",
                     "name": "prize_pool_usd",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "has_live_matches",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_compendium_public",
                     "id": 5
                 },
                 {
                     "rule": "optional",
                     "type": "uint32",
-                    "name": "version",
+                    "name": "compendium_version",
                     "id": 6
                 },
                 {
                     "rule": "optional",
-                    "type": "bool",
-                    "name": "compendium_is_public",
+                    "type": "uint32",
+                    "name": "compendium_content_version",
+                    "id": 7
+                }
+            ]
+        },
+        {
+            "name": "CStaticLeagueData",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "name",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "description",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "banner_name",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "itemdef_name",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "url",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "item_def_index",
                     "id": 7
                 },
                 {
                     "rule": "optional",
                     "type": "uint32",
-                    "name": "content_version",
+                    "name": "hud_skin_item_def_index",
                     "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "loading_screen_name",
+                    "id": 9
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "base_prize_pool",
+                    "id": 10
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_major",
+                    "id": 11
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "sort_order",
+                    "id": 12
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "tier",
+                    "id": 13
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "amateur_region",
+                    "id": 14
+                }
+            ]
+        },
+        {
+            "name": "CLeagueData",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CDynamicLeagueData",
+                    "name": "dynamic_data",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "CStaticLeagueData",
+                    "name": "static_data",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_owned",
+                    "id": 3
                 }
             ]
         },
@@ -23647,7 +24423,7 @@
             "fields": [
                 {
                     "rule": "repeated",
-                    "type": "CLeague",
+                    "type": "CDynamicLeagueData",
                     "name": "leagues",
                     "id": 1
                 }
@@ -24218,48 +24994,6 @@
                     "type": "uint32",
                     "name": "reply_detailed_odds",
                     "id": 4
-                }
-            ]
-        },
-        {
-            "name": "CMsgClientGameserverPings",
-            "fields": [
-                {
-                    "rule": "repeated",
-                    "type": "uint32",
-                    "name": "average_ping_by_group",
-                    "id": 1
-                },
-                {
-                    "rule": "repeated",
-                    "type": "PingDetail",
-                    "name": "ping_details",
-                    "id": 2
-                }
-            ],
-            "messages": [
-                {
-                    "name": "PingDetail",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "fixed32",
-                            "name": "ip",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "port",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "ping",
-                            "id": 3
-                        }
-                    ]
                 }
             ]
         },
@@ -24945,6 +25679,15 @@
                     "type": "uint32",
                     "name": "event_id",
                     "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "quantity",
+                    "id": 3,
+                    "options": {
+                        "default": 1
+                    }
                 }
             ]
         },
@@ -25244,18 +25987,15 @@
                 },
                 {
                     "rule": "optional",
-                    "type": "ESourceEngine",
-                    "name": "engine",
-                    "id": 6,
-                    "options": {
-                        "default": "k_ESE_Source1"
-                    }
+                    "type": "bool",
+                    "name": "include_practice_matches",
+                    "id": 7
                 },
                 {
                     "rule": "optional",
                     "type": "bool",
-                    "name": "include_practice_matches",
-                    "id": 7
+                    "name": "include_custom_games",
+                    "id": 8
                 }
             ]
         },
@@ -26312,7 +27052,7 @@
             "fields": [
                 {
                     "rule": "repeated",
-                    "type": "EIngameEvent",
+                    "type": "EEvent",
                     "name": "active_events",
                     "id": 1
                 }
@@ -28595,6 +29335,57 @@
             ]
         },
         {
+            "name": "CMsgGCRemoveItemAttributeMsg",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "item_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCNameItem",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "subject_item_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "tool_item_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "name",
+                    "id": 3
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCSetItemPosition",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "item_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "new_position",
+                    "id": 2
+                }
+            ]
+        },
+        {
             "name": "CMsgSpawnLootGreevil",
             "fields": [
                 {
@@ -28828,6 +29619,12 @@
                     "type": "uint32",
                     "name": "barracks_state",
                     "id": 13
+                },
+                {
+                    "rule": "optional",
+                    "type": "int32",
+                    "name": "radiant_lead",
+                    "id": 14
                 }
             ],
             "messages": [
@@ -31913,11 +32710,11 @@
             "fields": [
                 {
                     "rule": "optional",
-                    "type": "EIngameEvent",
+                    "type": "EEvent",
                     "name": "event",
                     "id": 1,
                     "options": {
-                        "default": "k_EIngameEvent_OraclePA"
+                        "default": "EVENT_ID_NONE"
                     }
                 }
             ]
@@ -32280,6 +33077,54 @@
                     "type": "uint32",
                     "name": "team_2_cheers",
                     "id": 3
+                }
+            ]
+        },
+        {
+            "name": "CMsgSignOutWagerStats",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "Player",
+                    "name": "players",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "event_id",
+                    "id": 2
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Player",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "winnings",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "max_wager",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "wager",
+                            "id": 4
+                        }
+                    ]
                 }
             ]
         },
@@ -33226,6 +34071,12 @@
                     "type": "bool",
                     "name": "queue",
                     "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "int32",
+                    "name": "sequence_number",
+                    "id": 8
                 }
             ]
         },
@@ -40280,194 +41131,6 @@
             ]
         },
         {
-            "name": "CCloud_GetUploadServerInfo_Request",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "appid",
-                    "id": 1,
-                    "options": {
-                        "(description)": "App ID to which a file will be uploaded to."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "CCloud_GetUploadServerInfo_Response",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "server_url",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CCloud_GetFileDetails_Request",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "ugcid",
-                    "id": 1,
-                    "options": {
-                        "(description)": "ID of the Cloud file to get details for."
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "appid",
-                    "id": 2,
-                    "options": {
-                        "(description)": "App ID the file belongs to."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "CCloud_UserFile",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "appid",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "ugcid",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "filename",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "timestamp",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "file_size",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "url",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "fixed64",
-                    "name": "steamid_creator",
-                    "id": 7
-                }
-            ]
-        },
-        {
-            "name": "CCloud_GetFileDetails_Response",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CCloud_UserFile",
-                    "name": "details",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CCloud_EnumerateUserFiles_Request",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "appid",
-                    "id": 1,
-                    "options": {
-                        "(description)": "App ID to enumerate the files of."
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "extended_details",
-                    "id": 2,
-                    "options": {
-                        "(description)": "(Optional) Get extended details back on the files found. Defaults to only returned the app Id and UGC Id of the files found."
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "count",
-                    "id": 3,
-                    "options": {
-                        "(description)": "(Optional) Maximum number of results to return on this call. Defaults to a maximum of 500 files returned."
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "start_index",
-                    "id": 4,
-                    "options": {
-                        "(description)": "(Optional) Starting index to begin enumeration at. Defaults to the beginning of the list."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "CCloud_EnumerateUserFiles_Response",
-            "fields": [
-                {
-                    "rule": "repeated",
-                    "type": "CCloud_UserFile",
-                    "name": "files",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "total_files",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CCloud_Delete_Request",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "filename",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "appid",
-                    "id": 2,
-                    "options": {
-                        "(description)": "App ID the file belongs to."
-                    }
-                }
-            ]
-        },
-        {
-            "name": "CCloud_Delete_Response",
-            "fields": []
-        },
-        {
             "name": "COAuthToken_ImplicitGrantNoPrompt_Request",
             "fields": [
                 {
@@ -43772,24 +44435,8 @@
                     "id": 61
                 },
                 {
-                    "name": "svc_UserMessage",
+                    "name": "svc_HLTVStatus",
                     "id": 62
-                },
-                {
-                    "name": "svc_SendTable",
-                    "id": 63
-                },
-                {
-                    "name": "svc_GameEvent",
-                    "id": 67
-                },
-                {
-                    "name": "svc_TempEntities",
-                    "id": 68
-                },
-                {
-                    "name": "svc_GameEventList",
-                    "id": 69
                 },
                 {
                     "name": "svc_FullFrameSplit",
@@ -44734,6 +45381,10 @@
                 {
                     "name": "DOTA_CM_CoinWager",
                     "id": 349
+                },
+                {
+                    "name": "DOTA_CM_ExecuteOrders",
+                    "id": 350
                 }
             ]
         },
@@ -44850,14 +45501,6 @@
                 {
                     "name": "k_EMsgGCRecentMatchesResponse",
                     "id": 7028
-                },
-                {
-                    "name": "k_EMsgGCFindSourceTVGames",
-                    "id": 7031
-                },
-                {
-                    "name": "k_EMsgGCSourceTVGamesResponse",
-                    "id": 7032
                 },
                 {
                     "name": "k_EMsgGCStartFindingMatch",
@@ -47064,10 +47707,6 @@
                     "id": 8037
                 },
                 {
-                    "name": "k_EMsgGCToClientTopMatchesResponse",
-                    "id": 8038
-                },
-                {
                     "name": "k_EMsgGCToClientProfileCardStatsUpdated",
                     "id": 8040
                 },
@@ -47138,6 +47777,71 @@
                 {
                     "name": "k_EMsgGCToGCGetAccountFlagsResponse",
                     "id": 8059
+                },
+                {
+                    "name": "k_EMsgSignOutWagerStats",
+                    "id": 8060
+                },
+                {
+                    "name": "k_EMsgGCToClientTopLeagueMatchesResponse",
+                    "id": 8061
+                },
+                {
+                    "name": "k_EMsgGCToClientTopFriendMatchesResponse",
+                    "id": 8062
+                },
+                {
+                    "name": "k_EMsgClientToGCMatchesMinimalRequest",
+                    "id": 8063
+                },
+                {
+                    "name": "k_EMsgClientToGCMatchesMinimalResponse",
+                    "id": 8064
+                },
+                {
+                    "name": "k_EMsgGCToGCGetProfileBadgePoints",
+                    "id": 8065
+                },
+                {
+                    "name": "k_EMsgGCToGCGetProfileBadgePointsResponse",
+                    "id": 8066
+                },
+                {
+                    "name": "k_EMsgGCToClientChatRegionsEnabled",
+                    "id": 8067
+                },
+                {
+                    "name": "k_EMsgClientToGCPingData",
+                    "id": 8068
+                },
+                {
+                    "name": "k_EMsgServerToGCMatchDetailsRequest",
+                    "id": 8069
+                },
+                {
+                    "name": "k_EMsgGCToServerMatchDetailsResponse",
+                    "id": 8070
+                },
+                {
+                    "name": "k_EMsgGCToGCEnsureAccountInParty",
+                    "id": 8071
+                },
+                {
+                    "name": "k_EMsgGCToGCEnsureAccountInPartyResponse",
+                    "id": 8072
+                }
+            ]
+        },
+        {
+            "name": "ESpecialPingValue",
+            "values": [
+                {
+                    "name": "k_ESpecialPingValue_NoData",
+                    "id": 16382
+                },
+                {
+                    "name": "k_ESpecialPingValue_Failed",
+                    "id": 16383
                 }
             ]
         },
@@ -47737,27 +48441,59 @@
             ]
         },
         {
-            "name": "EIngameEvent",
+            "name": "EEvent",
             "values": [
                 {
-                    "name": "k_EIngameEvent_OraclePA",
+                    "name": "EVENT_ID_NONE",
                     "id": 0
                 },
                 {
-                    "name": "k_EIngameEvent_CNY2015",
+                    "name": "EVENT_ID_DIRETIDE",
                     "id": 1
                 },
                 {
-                    "name": "k_EIngameEvent_CNY2015_PreBeast",
+                    "name": "EVENT_ID_SPRING_FESTIVAL",
                     "id": 2
                 },
                 {
-                    "name": "k_EIngameEvent_TI5",
+                    "name": "EVENT_ID_FROSTIVUS_2013",
                     "id": 3
                 },
                 {
-                    "name": "k_EIngameEvent_FM2015",
+                    "name": "EVENT_ID_COMPENDIUM_2014",
                     "id": 4
+                },
+                {
+                    "name": "EVENT_ID_NEXON_PC_BANG",
+                    "id": 5
+                },
+                {
+                    "name": "EVENT_ID_PWRD_DAC_2015",
+                    "id": 6
+                },
+                {
+                    "name": "EVENT_ID_NEW_BLOOM_2015",
+                    "id": 7
+                },
+                {
+                    "name": "EVENT_ID_INTERNATIONAL_2015",
+                    "id": 8
+                },
+                {
+                    "name": "EVENT_ID_FALL_MAJOR_2015",
+                    "id": 9
+                },
+                {
+                    "name": "EVENT_ID_ORACLE_PA",
+                    "id": 10
+                },
+                {
+                    "name": "EVENT_ID_NEW_BLOOM_2015_PREBEAST",
+                    "id": 11
+                },
+                {
+                    "name": "EVENT_ID_FROSTIVUS",
+                    "id": 12
                 }
             ]
         },
@@ -48082,6 +48818,87 @@
                 {
                     "name": "DOTA_COMBATLOG_MODIFIER_REFRESH",
                     "id": 19
+                },
+                {
+                    "name": "DOTA_COMBATLOG_NEUTRAL_CAMP_STACK",
+                    "id": 20
+                },
+                {
+                    "name": "DOTA_COMBATLOG_PICKUP_RUNE",
+                    "id": 21
+                }
+            ]
+        },
+        {
+            "name": "DOTAChatChannelType_t",
+            "values": [
+                {
+                    "name": "DOTAChannelType_Regional",
+                    "id": 0
+                },
+                {
+                    "name": "DOTAChannelType_Custom",
+                    "id": 1
+                },
+                {
+                    "name": "DOTAChannelType_Party",
+                    "id": 2
+                },
+                {
+                    "name": "DOTAChannelType_Lobby",
+                    "id": 3
+                },
+                {
+                    "name": "DOTAChannelType_Team",
+                    "id": 4
+                },
+                {
+                    "name": "DOTAChannelType_Guild",
+                    "id": 5
+                },
+                {
+                    "name": "DOTAChannelType_Fantasy",
+                    "id": 6
+                },
+                {
+                    "name": "DOTAChannelType_Whisper",
+                    "id": 7
+                },
+                {
+                    "name": "DOTAChannelType_Console",
+                    "id": 8
+                },
+                {
+                    "name": "DOTAChannelType_Tab",
+                    "id": 9
+                },
+                {
+                    "name": "DOTAChannelType_Invalid",
+                    "id": 10
+                },
+                {
+                    "name": "DOTAChannelType_GameAll",
+                    "id": 11
+                },
+                {
+                    "name": "DOTAChannelType_GameAllies",
+                    "id": 12
+                },
+                {
+                    "name": "DOTAChannelType_GameSpectator",
+                    "id": 13
+                },
+                {
+                    "name": "DOTAChannelType_GameCoaching",
+                    "id": 14
+                },
+                {
+                    "name": "DOTAChannelType_Cafe",
+                    "id": 15
+                },
+                {
+                    "name": "DOTAChannelType_CustomGame",
+                    "id": 16
                 }
             ]
         },
@@ -48663,79 +49480,6 @@
             ]
         },
         {
-            "name": "DOTAChatChannelType_t",
-            "values": [
-                {
-                    "name": "DOTAChannelType_Regional",
-                    "id": 0
-                },
-                {
-                    "name": "DOTAChannelType_Custom",
-                    "id": 1
-                },
-                {
-                    "name": "DOTAChannelType_Party",
-                    "id": 2
-                },
-                {
-                    "name": "DOTAChannelType_Lobby",
-                    "id": 3
-                },
-                {
-                    "name": "DOTAChannelType_Team",
-                    "id": 4
-                },
-                {
-                    "name": "DOTAChannelType_Guild",
-                    "id": 5
-                },
-                {
-                    "name": "DOTAChannelType_Fantasy",
-                    "id": 6
-                },
-                {
-                    "name": "DOTAChannelType_Whisper",
-                    "id": 7
-                },
-                {
-                    "name": "DOTAChannelType_Console",
-                    "id": 8
-                },
-                {
-                    "name": "DOTAChannelType_Tab",
-                    "id": 9
-                },
-                {
-                    "name": "DOTAChannelType_Invalid",
-                    "id": 10
-                },
-                {
-                    "name": "DOTAChannelType_GameAll",
-                    "id": 11
-                },
-                {
-                    "name": "DOTAChannelType_GameAllies",
-                    "id": 12
-                },
-                {
-                    "name": "DOTAChannelType_GameSpectator",
-                    "id": 13
-                },
-                {
-                    "name": "DOTAChannelType_GameCoaching",
-                    "id": 14
-                },
-                {
-                    "name": "DOTAChannelType_Cafe",
-                    "id": 15
-                },
-                {
-                    "name": "DOTAChannelType_CustomGame",
-                    "id": 16
-                }
-            ]
-        },
-        {
             "name": "DOTA_WatchReplayType",
             "values": [
                 {
@@ -49261,6 +50005,14 @@
                     "id": 1093
                 },
                 {
+                    "name": "k_EMsgGCExtractGemsResponse",
+                    "id": 1094
+                },
+                {
+                    "name": "k_EMsgGCResetStrangeGemCountResponse",
+                    "id": 1095
+                },
+                {
                     "name": "k_EMsgGCServerUseItemRequest",
                     "id": 1103
                 },
@@ -49283,6 +50035,18 @@
                 {
                     "name": "k_EMsgGCRemoveItemGifterAccountIdResponse",
                     "id": 1108
+                },
+                {
+                    "name": "k_EMsgClientToGCRemoveItemGifterAttributes",
+                    "id": 1109
+                },
+                {
+                    "name": "k_EMsgClientToGCRemoveItemName",
+                    "id": 1110
+                },
+                {
+                    "name": "k_EMsgClientToGCRemoveItemDescription",
+                    "id": 1111
                 },
                 {
                     "name": "k_EMsgGCTradingBase",
@@ -50367,6 +51131,10 @@
                 {
                     "name": "DOTA_UM_ProjectionEvent",
                     "id": 553
+                },
+                {
+                    "name": "DOTA_UM_CombatLogDataHLTV",
+                    "id": 554
                 }
             ]
         },
@@ -50720,6 +51488,10 @@
                 {
                     "name": "CHAT_MESSAGE_PAUSE_COUNTDOWN",
                     "id": 94
+                },
+                {
+                    "name": "CHAT_MESSAGE_COINS_WAGERED",
+                    "id": 95
                 }
             ]
         },
@@ -52240,42 +53012,6 @@
         }
     ],
     "services": [
-        {
-            "name": "Cloud",
-            "options": {
-                "(service_description)": "A service for Steam Cloud operations."
-            },
-            "rpc": {
-                "GetUploadServerInfo": {
-                    "request": "CCloud_GetUploadServerInfo_Request",
-                    "response": "CCloud_GetUploadServerInfo_Response",
-                    "options": {
-                        "(method_description)": "Returns the URL of the proper cloud server for a user."
-                    }
-                },
-                "GetFileDetails": {
-                    "request": "CCloud_GetFileDetails_Request",
-                    "response": "CCloud_GetFileDetails_Response",
-                    "options": {
-                        "(method_description)": "Returns details on a Cloud file."
-                    }
-                },
-                "EnumerateUserFiles": {
-                    "request": "CCloud_EnumerateUserFiles_Request",
-                    "response": "CCloud_EnumerateUserFiles_Response",
-                    "options": {
-                        "(method_description)": "Enumerates Cloud files for a user of a given app ID. Returns up to 500 files at a time."
-                    }
-                },
-                "Delete": {
-                    "request": "CCloud_Delete_Request",
-                    "response": "CCloud_Delete_Response",
-                    "options": {
-                        "(method_description)": "Deletes a file from the user's cloud."
-                    }
-                }
-            }
-        },
         {
             "name": "OAuthToken",
             "options": {

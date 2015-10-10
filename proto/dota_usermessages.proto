@@ -94,6 +94,7 @@ enum EDotaUserMessages {
 	DOTA_UM_CompendiumState = 551;
 	DOTA_UM_ProjectionAbility = 552;
 	DOTA_UM_ProjectionEvent = 553;
+	DOTA_UM_CombatLogDataHLTV = 554;
 }
 
 enum DOTA_CHAT_MESSAGE {
@@ -184,6 +185,7 @@ enum DOTA_CHAT_MESSAGE {
 	CHAT_MESSAGE_VOICE_TEXT_BANNED_OVERFLOW = 92;
 	CHAT_MESSAGE_YEAR_BEAST_KILLED = 93;
 	CHAT_MESSAGE_PAUSE_COUNTDOWN = 94;
+	CHAT_MESSAGE_COINS_WAGERED = 95;
 }
 
 enum DOTA_NO_BATTLE_POINTS_REASONS {
@@ -512,6 +514,7 @@ message CDOTAUserMsg_SpectatorPlayerUnitOrders {
 	optional int32 ability_index = 5;
 	optional .CMsgVector position = 6;
 	optional bool queue = 7;
+	optional int32 sequence_number = 8;
 }
 
 message CDOTAUserMsg_NevermoreRequiem {

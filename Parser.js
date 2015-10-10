@@ -16,6 +16,7 @@ var dota = builder.build();
 //CDemoSignonPacket is a special case and should be decoded with CDemoPacket since it doesn't have its own protobuf
 //it appears that things like the gameeventlist and createstringtables calls are here?
 dota["CDemoSignonPacket"] = dota["CDemoPacket"];
+dota["CDOTAUserMsg_CombatLogDataHLTV"] = dota["CMsgDOTACombatLogEntry"];
 //console.error(Object.keys(dota));
 var Parser = function(input, options) {
     //if a JS ArrayBuffer, convert to native node buffer
@@ -142,7 +143,7 @@ var Parser = function(input, options) {
      **/
     require("./packets")(p);
     require("./stringTables")(p);
-    require("./entities")(p);
+    //require("./entities")(p);
     p.on("CDemoStop", function(data) {
         //don't stop on CDemoStop since some replays have CDemoGameInfo after it
         //stop = true;
