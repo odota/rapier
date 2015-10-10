@@ -1,4 +1,6 @@
 var BitStream = require('./BitStream');
+var util = require('./util');
+var extractBuffer = util.extractBuffer;
 module.exports = function(p) {
     var dota = p.dota;
     var packetTypes = p.types.packets;
@@ -40,15 +42,15 @@ module.exports = function(p) {
         //the inner data of a CDemoPacket is raw bits (no longer byte aligned!)
         var packets = [];
         //extract the native buffer from the ByteBuffer decoded by protobufjs
-        //rewrap it in a new Buffer to force usage of node Buffer wrapper rather than ArrayBuffer when in browser
-        var buf = new Buffer(msg.data.toBuffer());
+        var buf = extractBuffer(msg.data);
         //convert the buffer object into a bitstream so we can read bits from it
-        var bs = new BitStream(buf);
+        var bs = BitStream(buf);
         //read until less than 8 bits left
         while (bs.limit - bs.offset >= 8) {
             var t = bs.readUBitVar();
             var s = bs.readVarUInt();
             var d = bs.readBuffer(s * 8);
+            var name = packetTypes[t];
             var pack = {
                 type: t,
                 size: s,

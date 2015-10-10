@@ -19,12 +19,12 @@ p.on("CDemoFileInfo", function(data) {
 });
 //all chat
 p.on("CUserMessageSayText2", function(data) {
-    //console.log(data);
+    console.log(data);
 });
 //chat wheel
 p.on("CDOTAUserMsg_ChatWheel", function(data){
     data.chat_message = types["EDOTAChatWheelMessage"][data.chat_message];
-    console.log(data);
+    //console.log(data);
 });
 //overhead events
 p.on("CDOTAUserMsg_OverheadEvent", function(data){
@@ -79,9 +79,11 @@ p.on("CMsgSource1LegacyGameEvent", function(data) {
     }
 });
 //every tick
+/*
 p.on("CNETMsg_Tick", function(data) {
     //console.log(data);
 });
+*/
 //console data (includes some stun/slow data and damage breakdown by target/ability)
 /*
 p.on("CUserMessageTextMsg", function(data) {
@@ -96,10 +98,12 @@ p.on("CDOTAUserMsg_SpectatorPlayerUnitOrders", function(data) {
 */
 //everything
 //each event is called with the protobuf message contents and the name of the message
+/*
 p.on("*", function(data, proto_name) {
     //console.log(data);
     counts[proto_name] = counts[proto_name] ? counts[proto_name] + 1 : 1;
 });
+*/
 
 var counts = {};
 console.time('parse');

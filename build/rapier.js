@@ -4,154 +4,206 @@
  * Converts a given buffer of bytes to a stream of bits and provides methods for reading individual bits (non-aligned reads)
  **/
 //var Long = require('long');
-//accepts a native buffer object
-var BitStream = function(buf) {
-    this.offset = 0;
-    this.limit = buf.length * 8;
-    this.bytes = buf;
-};
-/**
- * Reads the specified number of bits (possibly non-aligned) and returns as 32bit int
- **/
-BitStream.prototype.readBits = function(n) {
-    if (n > (this.limit - this.offset)) {
-        throw "not enough bits left in stream to read!";
-    }
-    var bitOffset = this.offset % 8;
-    var bitsToRead = bitOffset + n;
-    var bytesToRead = ~~(bitsToRead / 8);
-    //if reading a multiple of 8 bits, read an additional byte
-    if (bitsToRead % 8) {
-        bytesToRead += 1;
-    }
-    var value = null;
-    if (!bitOffset && n === 8) {
-        //if we are byte-aligned and only want one byte, we can read quickly without shifting operations
-        value = this.bytes.readUInt8(this.offset / 8);
-    }
-    //32 bit shifting
-    else if (bitsToRead <= 31) {
-        value = 0;
-        //console.error(bits, this.offset, bitOffset, bitsToRead,bytesToRead);
-        for (var i = 0; i < bytesToRead; i++) {
-            //extract the byte from the backing buffer
-            var m = this.bytes[~~(this.offset / 8) + i];
-            //move these 8 bits to the correct location
-            //looks like most significant 8 bits come last, so this flips endianness
-            value += (m << (i * 8));
-        }
-        //drop the extra bits, since we started from the beginning of the byte regardless of offset
-        value >>= bitOffset;
-        //shift a single 1 over, subtract 1 to form a bit mask that removes the first bit
-        value &= ((1 << n) - 1);
-    }
-    else {
-        //trying to read 32+ bits with native JS probably won't work due to 32 bit limit on shift operations
-        //this means in practice we may have difficulty with n >= 25 bits (since offset can be up to 7)
-        //can't fit that into a 32 bit int unless we use JS Long, which is slow
-        console.error(bitsToRead);
-        throw "requires long to read >32 bits from bitstream!"
+//accepts a native buffer object or a bytebuffer
+module.exports = function(buf) {
+    var ret = {
+        offset: buf.offset ? buf.offset * 8 : 0,
+        limit: buf.limit ? buf.limit * 8 : buf.length * 8,
+        bytes: buf.buffer || buf,
+        readBits: readBits,
+        readBuffer: readBuffer,
+        readBoolean: readBoolean,
+        readNullTerminatedString: readNullTerminatedString,
+        readUInt8: readUInt8,
+        readUBitVar: readUBitVar,
+        readVarUInt: readVarUInt,
+        readVarUInt64: readVarUInt64,
+        readVarInt: readVarInt
+    };
+    /**
+     * Reads the specified number of bits (possibly non-aligned) and returns as 32bit int
+     **/
+    function readBits(n) {
         /*
-        //64 bit shifting, we only need this if our operations cant fit into 32 bits
-        value = new Long();
-        //console.error(bits, this.offset, bitOffset, bitsToRead,bytesToRead);
-        for (var i = 0; i < bytesToRead; i++) {
-            //extract the byte from the backing buffer
-            var m64 = this.bytes[~~(this.offset / 8) + i];
-            //console.error(m, this.bytes);
-            //copy m into a 64bit holder so we can shift bits around more
-            m64 = new Long.fromNumber(m64);
-            //shift to get the bits we want
-            value = value.add(m64.shiftLeft(i * 8));
+        if (n > (ret.limit - ret.offset)) {
+            throw "not enough bits left in stream to read!";
         }
-        value = value.shiftRight(bitOffset);
-        //shift a single 1 over, subtract 1 to form a bit mask 
-        value = value.and((1 << n) - 1);
-        value = value.toInt();
         */
-    }
-    this.offset += n;
-    return value;
-};
-/**
- * Reads the specified number of bits into a Buffer and returns
- **/
-BitStream.prototype.readBuffer = function(bits) {
-    var bytes = Math.ceil(bits / 8);
-    var result = new Buffer(bytes);
-    var offset = 0;
-    result.length = bytes;
-    while (bits > 0) {
-        //read up to 8 bits at a time (we may read less at the end if not aligned)
-        var bitsToRead = Math.min(bits, 8);
-        result.writeUInt8(this.readBits(bitsToRead), offset);
-        offset += 1;
-        bits -= bitsToRead;
-    }
-    return result;
-};
-BitStream.prototype.readBoolean = function() {
-    return this.readBits(1);
-};
-/**
- * Reads until we reach a null terminator character and returns the result as a string
- **/
-BitStream.prototype.readNullTerminatedString = function() {
-    var str = "";
-    while (true) {
-        var byteInt = this.readBits(8);
-        if (!byteInt) {
-            break;
+        var bitOffset = ret.offset % 8;
+        var bitsToRead = bitOffset + n;
+        var bytesToRead = ~~(bitsToRead / 8);
+        //if reading a multiple of 8 bits, read an additional byte
+        if (bitsToRead % 8) {
+            bytesToRead += 1;
         }
-        var byteBuf = new Buffer(1);
-        byteBuf.writeUInt8(byteInt);
-        str += byteBuf.toString();
+        var value = null;
+        if (!bitOffset && n === 8) {
+            //if we are byte-aligned and only want one byte, we can read quickly without shifting operations
+            value = ret.bytes.readUInt8(ret.offset / 8);
+        }
+        //32 bit shifting
+        else if (bitsToRead <= 31) {
+            value = 0;
+            //console.error(bits, ret.offset, bitOffset, bitsToRead,bytesToRead);
+            for (var i = 0; i < bytesToRead; i++) {
+                //extract the byte from the backing buffer
+                var m = ret.bytes[~~(ret.offset / 8) + i];
+                //move these 8 bits to the correct location
+                //looks like most significant 8 bits come last, so this flips endianness
+                value += (m << (i * 8));
+            }
+            //drop the extra bits, since we started from the beginning of the byte regardless of offset
+            value >>= bitOffset;
+            //shift a single 1 over, subtract 1 to form a bit mask that removes the first bit
+            value &= ((1 << n) - 1);
+        }
+        else {
+            //trying to read 32+ bits with native JS probably won't work due to 32 bit limit on shift operations
+            //this means in practice we may have difficulty with n >= 25 bits (since offset can be up to 7)
+            //can't fit that into a 32 bit int unless we use JS Long, which is slow
+            console.error(bitsToRead);
+            throw "requires long to read >32 bits from bitstream!";
+            /*
+            //64 bit shifting, we only need this if our operations cant fit into 32 bits
+            value = new Long();
+            //console.error(bits, ret.offset, bitOffset, bitsToRead,bytesToRead);
+            for (var i = 0; i < bytesToRead; i++) {
+                //extract the byte from the backing buffer
+                var m64 = ret.bytes[~~(ret.offset / 8) + i];
+                //console.error(m, ret.bytes);
+                //copy m into a 64bit holder so we can shift bits around more
+                m64 = new Long.fromNumber(m64);
+                //shift to get the bits we want
+                value = value.add(m64.shiftLeft(i * 8));
+            }
+            value = value.shiftRight(bitOffset);
+            //shift a single 1 over, subtract 1 to form a bit mask 
+            value = value.and((1 << n) - 1);
+            value = value.toInt();
+            */
+        }
+        ret.offset += n;
+        return value;
     }
-    //console.log(str);
-    return str;
-};
-BitStream.prototype.readUInt8 = function(){
-    return this.readBits(8);
-};
-BitStream.prototype.readVarUInt = function() {
-    var max = 32;
-    var m = ((max + 6) / 7) * 7;
-    var value = 0;
-    var shift = 0;
-    while (true) {
-        var byte = this.readBits(8);
-        value |= (byte & 0x7F) << shift;
-        shift += 7;
-        if ((byte & 0x80) === 0 || shift == m) {
-            return value;
+    /**
+     * Reads the specified number of bits into a Buffer and returns
+     **/
+    function readBuffer(bits) {
+        var bytes = Math.ceil(bits / 8);
+        var result = new Buffer(bytes);
+        var offset = 0;
+        result.length = bytes;
+        while (bits > 0) {
+            //read up to 8 bits at a time (we may read less at the end if not aligned)
+            var bitsToRead = Math.min(bits, 8);
+            result.writeUInt8(ret.readBits(bitsToRead), offset);
+            offset += 1;
+            bits -= bitsToRead;
+        }
+        return result;
+    }
+
+    function readBoolean() {
+        return ret.readBits(1);
+    }
+    /**
+     * Reads until we reach a null terminator character and returns the result as a string
+     **/
+    function readNullTerminatedString() {
+        var str = "";
+        while (true) {
+            var byteInt = ret.readBits(8);
+            if (!byteInt) {
+                break;
+            }
+            var byteBuf = new Buffer(1);
+            byteBuf.writeUInt8(byteInt);
+            str += byteBuf.toString();
+        }
+        //console.log(str);
+        return str;
+    }
+
+    function readUInt8() {
+        return ret.readBits(8);
+    }
+    /**
+     * Reads an unsigned varint up to 2^32 from the stream
+     **/
+    function readVarUInt() {
+        var max = 32;
+        var m = ((max + 6) / 7) * 7;
+        var value = 0;
+        var shift = 0;
+        while (true) {
+            var byte = ret.readBits(8);
+            value |= (byte & 0x7F) << shift;
+            shift += 7;
+            if ((byte & 0x80) === 0 || shift == m) {
+                return value;
+            }
         }
     }
-};
-BitStream.prototype.readUBitVar = function() {
-    // Thanks to Robin Dietrich for providing a clean version of this code :-)
-    // The header looks like this: [XY00001111222233333333333333333333] where everything > 0 is optional.
-    // The first 2 bits (X and Y) tell us how much (if any) to read other than the 6 initial bits:
-    // Y set -> read 4
-    // X set -> read 8
-    // X + Y set -> read 28
-    var v = this.readBits(6);
-    //bitwise & 0x30 (0b110000) (determines whether the first two bits are set)
-    switch (v & 0x30) {
-        case 0x10:
-            v = (v & 15) | (this.readBits(4) << 4);
-            break;
-        case 0x20:
-            v = (v & 15) | (this.readBits(8) << 4);
-            break;
-        case 0x30:
-            v = (v & 15) | (this.readBits(28) << 4);
-            break;
+    /**
+     * Reads an unsigned varint up to 2^64 from the stream
+     **/
+    function readVarUInt64() {
+        //TODO need to use Long to handle the return result
+        var x;
+        var s;
+        for (var i = 0;; i++) {
+            var b = ret.readUInt8();
+            if (b < 0x80) {
+                if (i > 9 || (i == 9 && b > 1)) {
+                    throw "read overflow: varint overflows uint64";
+                }
+                return x | b << s;
+            }
+            x |= b & 0x7f << s;
+            s += 7;
+        }
     }
-    return v;
+    /**
+     * Reads a signed varint up to 2^31 from the stream
+     **/
+    function readVarInt() {
+        var ux = ret.readVarUInt();
+        var x = ux >> 1;
+        if (ux & 1 !== 0) {
+            //invert x
+            x = ~x;
+        }
+        return x;
+    }
+    /**
+     * Reads a special bit var from the stream, used for packet id
+     **/
+    function readUBitVar() {
+        // Thanks to Robin Dietrich for providing a clean version of this code :-)
+        // The header looks like this: [XY00001111222233333333333333333333] where everything > 0 is optional.
+        // The first 2 bits (X and Y) tell us how much (if any) to read other than the 6 initial bits:
+        // Y set -> read 4
+        // X set -> read 8
+        // X + Y set -> read 28
+        var v = ret.readBits(6);
+        //bitwise & 0x30 (0b110000) (determines whether the first two bits are set)
+        switch (v & 0x30) {
+            case 0x10:
+                v = (v & 15) | (ret.readBits(4) << 4);
+                break;
+            case 0x20:
+                v = (v & 15) | (ret.readBits(8) << 4);
+                break;
+            case 0x30:
+                v = (v & 15) | (ret.readBits(28) << 4);
+                break;
+        }
+        return v;
+    }
+    return ret;
 };
-module.exports = BitStream;
 }).call(this,require("buffer").Buffer)
-},{"buffer":29}],2:[function(require,module,exports){
+},{"buffer":28}],2:[function(require,module,exports){
 (function (global,Buffer){
 /**
  * Class creating a Source 2 Dota 2 replay parser
@@ -289,7 +341,7 @@ var Parser = function(input, options) {
      **/
     require("./packets")(p);
     require("./stringTables")(p);
-    require("./entities")(p);
+    //require("./entities")(p);
     p.on("CDemoStop", function(data) {
         //don't stop on CDemoStop since some replays have CDemoGameInfo after it
         //stop = true;
@@ -443,7 +495,7 @@ var Parser = function(input, options) {
 global.Parser = Parser;
 module.exports = Parser;
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("buffer").Buffer)
-},{"./build/protos.json":3,"./build/types.json":4,"./entities":5,"./packets":36,"./snappy":37,"./stringTables":38,"async":6,"buffer":29,"events":9,"protobufjs":35,"stream":27}],3:[function(require,module,exports){
+},{"./build/protos.json":3,"./build/types.json":4,"./packets":35,"./snappy":36,"./stringTables":37,"async":5,"buffer":28,"events":8,"protobufjs":34,"stream":26}],3:[function(require,module,exports){
 module.exports={
     "package": null,
     "options": {
@@ -8676,6 +8728,17 @@ module.exports={
             ]
         },
         {
+            "name": "CDOTAClientMsg_CoinWager",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "wager_amount",
+                    "id": 1
+                }
+            ]
+        },
+        {
             "name": "CMsgSHA1Digest",
             "fields": [
                 {
@@ -9952,6 +10015,18 @@ module.exports={
                     "type": "uint32",
                     "name": "curr_all_hero_challenge_id",
                     "id": 67
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "play_time_points",
+                    "id": 68
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_flags",
+                    "id": 69
                 }
             ]
         },
@@ -10824,6 +10899,12 @@ module.exports={
                     "type": "sint32",
                     "name": "rank_change",
                     "id": 16
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_home_team",
+                    "id": 17
                 }
             ]
         },
@@ -11322,6 +11403,18 @@ module.exports={
                     "type": "bool",
                     "name": "custom_game_auto_created_lobby",
                     "id": 77
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_series_id",
+                    "id": 78
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_game_id",
+                    "id": 79
                 },
                 {
                     "rule": "optional",
@@ -11958,6 +12051,12 @@ module.exports={
                     "type": "uint32",
                     "name": "autograph_id",
                     "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "autograph_score",
+                    "id": 4
                 }
             ]
         },
@@ -12712,6 +12811,18 @@ module.exports={
                     "type": "Slot",
                     "name": "slots",
                     "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "badge_points",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "event_points",
+                    "id": 5
                 }
             ],
             "messages": [
@@ -12801,6 +12912,12 @@ module.exports={
                                     "type": "bytes",
                                     "name": "serialized_item",
                                     "id": 1
+                                },
+                                {
+                                    "rule": "optional",
+                                    "type": "uint64",
+                                    "name": "item_id",
+                                    "id": 2
                                 }
                             ]
                         },
@@ -13211,6 +13328,18 @@ module.exports={
                             "type": "uint32",
                             "name": "level",
                             "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "cooldown",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "cooldown_max",
+                            "id": 5
                         }
                     ]
                 },
@@ -14150,6 +14279,3352 @@ module.exports={
             ]
         },
         {
+            "name": "CMsgGCPlayerInfo",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "PlayerInfo",
+                    "name": "player_infos",
+                    "id": 1
+                }
+            ],
+            "messages": [
+                {
+                    "name": "PlayerInfo",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "name",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "country_code",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "fantasy_role",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "team_id",
+                            "id": 5
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "team_name",
+                            "id": 6
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "team_tag",
+                            "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "sponsor",
+                            "id": 8
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "bool",
+                            "name": "is_locked",
+                            "id": 9
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTACreateFantasyLeagueRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "league_name",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "league_logo",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "Fantasy_Selection_Mode",
+                    "name": "selection_mode",
+                    "id": 3,
+                    "options": {
+                        "default": "FANTASY_SELECTION_INVALID"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_count",
+                    "id": 4
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTACreateFantasyLeagueResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_TOO_MANY_LEAGUES",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_INVALID_TEAM_COUNT",
+                            "id": 3
+                        },
+                        {
+                            "name": "ERROR_CREATION_DISABLED",
+                            "id": 4
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgFantasyLeagueScoring",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "level",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "kills",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "deaths",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "assists",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "last_hits",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "denies",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "gpm",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "xppm",
+                    "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "stuns",
+                    "id": 9
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "healing",
+                    "id": 10
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "tower_kills",
+                    "id": 11
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "roshan_kills",
+                    "id": 12
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "multiplier_premium",
+                    "id": 13
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "multiplier_professional",
+                    "id": 14
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueInfo",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "commissioner_account_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "fantasy_league_name",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "Fantasy_Selection_Mode",
+                    "name": "selection_mode",
+                    "id": 4,
+                    "options": {
+                        "default": "FANTASY_SELECTION_INVALID"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_count",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "logo",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgFantasyLeagueScoring",
+                    "name": "scoring",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "draft_time",
+                    "id": 12
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "draft_pick_time",
+                    "id": 13
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "season_start",
+                    "id": 15
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "season_length",
+                    "id": 16
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "veto_votes",
+                    "id": 17
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "acquisitions",
+                    "id": 18
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "slot_1",
+                    "id": 19
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "slot_2",
+                    "id": 20
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "slot_3",
+                    "id": 21
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "slot_4",
+                    "id": 22
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "slot_5",
+                    "id": 23
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "bench_slots",
+                    "id": 24
+                },
+                {
+                    "rule": "repeated",
+                    "type": "OwnerInfo",
+                    "name": "owner_info",
+                    "id": 25
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "players",
+                    "id": 26
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "time_zone",
+                    "id": 27
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "season",
+                    "id": 28
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "password",
+                    "id": 29
+                }
+            ],
+            "messages": [
+                {
+                    "name": "OwnerInfo",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "owner_account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "bool",
+                            "name": "left_league",
+                            "id": 2
+                        },
+                        {
+                            "rule": "repeated",
+                            "type": "uint32",
+                            "name": "player_account_id",
+                            "id": 3
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueEditInfoRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgDOTAFantasyLeagueInfo",
+                    "name": "edit_info",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueEditInfoResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueFindRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "password",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueFindResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "fantasy_league_name",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "commissioner_name",
+                    "id": 3
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_LEAGUE_NOT_FOUND",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_BAD_PASSWORD",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 3
+                        },
+                        {
+                            "name": "ERROR_FULL",
+                            "id": 4
+                        },
+                        {
+                            "name": "ERROR_ALREADY_MEMBER",
+                            "id": 5
+                        },
+                        {
+                            "name": "ERROR_LEAGUE_LOCKED",
+                            "id": 6
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueInfoRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueInfoResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_BAD_LEAGUE_ID",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueMatchupsRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueMatchupsResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 2
+                },
+                {
+                    "rule": "repeated",
+                    "type": "WeeklyMatchups",
+                    "name": "weekly_matchups",
+                    "id": 3
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Matchup",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "owner_account_id_1",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "owner_account_id_2",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "score_1",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "score_2",
+                            "id": 4
+                        }
+                    ]
+                },
+                {
+                    "name": "WeeklyMatchups",
+                    "fields": [
+                        {
+                            "rule": "repeated",
+                            "type": "Matchup",
+                            "name": "matchup",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "start_time",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "end_time",
+                            "id": 3
+                        }
+                    ]
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_BAD_LEAGUE_ID",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 3
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAEditFantasyTeamRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_index",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "team_name",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "team_logo",
+                    "id": 4
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAEditFantasyTeamResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_INVALID_TEAM_INFO",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_NAME_ALREADY_TAKEN",
+                            "id": 3
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 4
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamInfoRequestByFantasyLeagueID",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamInfoRequestByOwnerAccountID",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "owner_account_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamInfoResponse",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "CMsgDOTAFantasyTeamInfo",
+                    "name": "results",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamInfo",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "owner_account_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_team_index",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "team_name",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "team_logo",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "wins",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "losses",
+                    "id": 7
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "current_roster",
+                    "id": 8
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamScoreRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "owner_account_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_team_index",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "filter_match_id",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "filter_start_time",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "filter_end_time",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "include_bench",
+                    "id": 7
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamScoreResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "fantasy_team_score",
+                    "id": 2
+                },
+                {
+                    "rule": "repeated",
+                    "type": "CMsgPlayerScore",
+                    "name": "fantasy_player_score",
+                    "id": 3
+                }
+            ],
+            "messages": [
+                {
+                    "name": "CMsgPlayerScore",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "score",
+                            "id": 2
+                        }
+                    ]
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_OWNER_NOT_IN_LEAGUE",
+                            "id": 3
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamStandingsRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "count",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "filter_start_time",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "filter_end_time",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "filter_match_id",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "filter_last_match",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "filter_in_hall",
+                    "id": 7
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamStandingsResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "CMsgTeamScore",
+                    "name": "team_scores",
+                    "id": 3
+                }
+            ],
+            "messages": [
+                {
+                    "name": "CMsgTeamScore",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "fantasy_league_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "owner_account_id",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "fantasy_team_index",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint64",
+                            "name": "fantasy_team_logo",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "owner_name",
+                            "id": 5
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "fantasy_team_name",
+                            "id": 6
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "score",
+                            "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "score_against",
+                            "id": 8
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "wins",
+                            "id": 9
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "losses",
+                            "id": 10
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "int32",
+                            "name": "streak",
+                            "id": 11
+                        }
+                    ]
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyPlayerScoreRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "player_account_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "filter_start_time",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "filter_end_time",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "filter_match_id",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "filter_last_match",
+                    "id": 6
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyPlayerScoreResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "player_account_id",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "player_name",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "score",
+                    "id": 5
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyPlayerStandingsRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "count",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "role",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "filter_start_time",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "filter_end_time",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "filter_match_id",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "filter_last_match",
+                    "id": 7
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyPlayerStandingsResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "role",
+                    "id": 3
+                },
+                {
+                    "rule": "repeated",
+                    "type": "CMsgPlayerScore",
+                    "name": "player_scores",
+                    "id": 4
+                }
+            ],
+            "messages": [
+                {
+                    "name": "CMsgPlayerScore",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "player_account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "player_name",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "score",
+                            "id": 3
+                        }
+                    ]
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyPlayerInfoRequest",
+            "fields": []
+        },
+        {
+            "name": "CMsgDOTAFantasyPlayerInfoResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CMsgGCPlayerInfo",
+                    "name": "msg",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueCreateRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "season_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "fantasy_league_name",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "password",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "team_name",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "logo",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "ticket_item_id",
+                    "id": 6
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueCreateResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 2
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_BAD_SEASON_ID",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_BAD_LEAGUE_NAME",
+                            "id": 3
+                        },
+                        {
+                            "name": "ERROR_BAD_TEAM_NAME",
+                            "id": 4
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 5
+                        },
+                        {
+                            "name": "ERROR_FAILED_LOGO_UPLOAD",
+                            "id": 6
+                        },
+                        {
+                            "name": "ERROR_NO_TICKET",
+                            "id": 7
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamCreateRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "password",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "team_name",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "logo",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "ticket_item_id",
+                    "id": 5
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamCreateResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_team_index",
+                    "id": 2
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_FAILED_LOGO_UPLOAD",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_BAD_FANTASY_LEAGUE_ID",
+                            "id": 3
+                        },
+                        {
+                            "name": "ERROR_BAD_NAME",
+                            "id": 4
+                        },
+                        {
+                            "name": "ERROR_FULL",
+                            "id": 5
+                        },
+                        {
+                            "name": "ERROR_ALREADY_MEMBER",
+                            "id": 6
+                        },
+                        {
+                            "name": "ERROR_BAD_PASSWORD",
+                            "id": 7
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 8
+                        },
+                        {
+                            "name": "ERROR_NO_TICKET",
+                            "id": 9
+                        },
+                        {
+                            "name": "ERROR_LEAGUE_LOCKED",
+                            "id": 10
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueEditInvitesRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "password",
+                    "id": 2
+                },
+                {
+                    "rule": "repeated",
+                    "type": "InviteChange",
+                    "name": "invite_change",
+                    "id": 3
+                }
+            ],
+            "messages": [
+                {
+                    "name": "InviteChange",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "bool",
+                            "name": "invited",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueEditInvitesResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueDraftStatusRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueDraftStatus",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "draft_order",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "current_pick",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "time_remaining",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "pending_resume",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "completed",
+                    "id": 6
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "available_players",
+                    "id": 7
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueDraftPlayerRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_index",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "player_account_id",
+                    "id": 3
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeagueDraftPlayerResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_INVALID_FANTASY_LEAGUE",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_FANTASY_LEAGUE_NOT_DRAFTING",
+                            "id": 3
+                        },
+                        {
+                            "name": "ERROR_OWNER_NOT_IN_LEAGUE",
+                            "id": 4
+                        },
+                        {
+                            "name": "ERROR_NOT_OWNERS_TURN",
+                            "id": 5
+                        },
+                        {
+                            "name": "ERROR_PLAYER_INVALID",
+                            "id": 6
+                        },
+                        {
+                            "name": "ERROR_PLAYER_UNAVAILABLE",
+                            "id": 7
+                        },
+                        {
+                            "name": "ERROR_PLAYER_NO_VALID_SLOTS",
+                            "id": 8
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamRosterSwapRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_index",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "timestamp",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "slot_1",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "slot_2",
+                    "id": 5
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamRosterSwapResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_OWNER_NOT_IN_LEAGUE",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_SLOTS_INVALID",
+                            "id": 3
+                        },
+                        {
+                            "name": "ERROR_SLOT_LOCKED",
+                            "id": 4
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamRosterAddDropRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_index",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "add_account_id",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "drop_account_id",
+                    "id": 6
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamRosterAddDropResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_OWNER_NOT_IN_LEAGUE",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_PLAYER_NOT_AVAILABLE",
+                            "id": 3
+                        },
+                        {
+                            "name": "ERROR_PLAYER_NOT_ON_TEAM",
+                            "id": 4
+                        },
+                        {
+                            "name": "ERROR_TRADE_ALREADY_PENDING",
+                            "id": 5
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamTradesRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamTradesResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "Trade",
+                    "name": "trades",
+                    "id": 2
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Trade",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "timestamp",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "owner_account_id_1",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "owner_account_id_2",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "player_account_id_1",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "player_account_id_2",
+                            "id": 5
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "status",
+                            "id": 6
+                        }
+                    ]
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamTradeCancelRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_index_1",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "owner_account_id_2",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_index_2",
+                    "id": 5
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamTradeCancelResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_NO_TRADE",
+                            "id": 3
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamRosterRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_index",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "owner_account_id",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "timestamp",
+                    "id": 4
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyTeamRosterResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "player_account_ids",
+                    "id": 2
+                },
+                {
+                    "rule": "repeated",
+                    "type": "bool",
+                    "name": "player_locked",
+                    "id": 3
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_OWNER_NOT_IN_LEAGUE",
+                            "id": 3
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyPlayerHisoricalStatsRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyPlayerHisoricalStatsResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "PlayerStats",
+                    "name": "stats",
+                    "id": 2
+                }
+            ],
+            "messages": [
+                {
+                    "name": "PlayerScoreAccumulator",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "matches",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "levels",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "kills",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "deaths",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "assists",
+                            "id": 5
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "last_hits",
+                            "id": 6
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "denies",
+                            "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "gpm",
+                            "id": 8
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "xppm",
+                            "id": 9
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "stuns",
+                            "id": 10
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "healing",
+                            "id": 11
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "tower_kills",
+                            "id": 12
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "roshan_kills",
+                            "id": 13
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "score",
+                            "id": 14
+                        }
+                    ]
+                },
+                {
+                    "name": "PlayerStats",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "weeks",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "PlayerScoreAccumulator",
+                            "name": "stats_premium",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "PlayerScoreAccumulator",
+                            "name": "stats_professional",
+                            "id": 5
+                        }
+                    ]
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyMessageAdd",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "message",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyMessagesRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "start_message",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "end_message",
+                    "id": 3
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyMessagesResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "Message",
+                    "name": "messages",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "num_total_messages",
+                    "id": 3
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Message",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "message_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "message",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "author_account_id",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "time",
+                            "id": 4
+                        }
+                    ]
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyRemoveOwner",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "owner_account_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_index",
+                    "id": 3
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyRemoveOwnerResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NO_PERMISSION",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_LEAGUE_LOCKED",
+                            "id": 3
+                        },
+                        {
+                            "name": "ERROR_NOT_A_MEMBER",
+                            "id": 4
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyScheduledMatchesRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyScheduledMatchesResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "ScheduledMatchDays",
+                    "name": "scheduled_match_days",
+                    "id": 2
+                }
+            ],
+            "messages": [
+                {
+                    "name": "ScheduledMatchDays",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "timestamp",
+                            "id": 1
+                        },
+                        {
+                            "rule": "repeated",
+                            "type": "uint32",
+                            "name": "team_ids",
+                            "id": 2
+                        },
+                        {
+                            "rule": "repeated",
+                            "type": "uint32",
+                            "name": "league_ids",
+                            "id": 3
+                        }
+                    ]
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeaveLeagueRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_team_index",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyLeaveLeagueResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NOT_MEMBER",
+                            "id": 2
+                        },
+                        {
+                            "name": "ERROR_LEAGUE_NOT_FOUND",
+                            "id": 3
+                        },
+                        {
+                            "name": "ERROR_DRAFT_ACTIVE",
+                            "id": 4
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyPlayerScoreDetailsRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "player_account_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "start_time",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "end_time",
+                    "id": 4
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAFantasyPlayerScoreDetailsResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResult",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "PlayerMatchData",
+                    "name": "data",
+                    "id": 2
+                }
+            ],
+            "messages": [
+                {
+                    "name": "PlayerMatchData",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint64",
+                            "name": "match_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "series_id",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "series_num",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "series_type",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "league_tier",
+                            "id": 5
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "league_id",
+                            "id": 6
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "opposing_team_id",
+                            "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint64",
+                            "name": "opposing_team_logo",
+                            "id": 8
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "opposing_team_name",
+                            "id": 9
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "CMsgFantasyLeagueScoring",
+                            "name": "stats",
+                            "id": 10
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "owned_by",
+                            "id": 11
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "bool",
+                            "name": "benched",
+                            "id": 12
+                        }
+                    ]
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "ERROR_UNSPECIFIED",
+                            "id": 1
+                        },
+                        {
+                            "name": "ERROR_NOT_MEMBER",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTATournament",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "Team",
+                    "name": "teams",
+                    "id": 1
+                },
+                {
+                    "rule": "repeated",
+                    "type": "Game",
+                    "name": "games",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "gid",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "tournament_id",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "ETournamentType",
+                    "name": "tournament_type",
+                    "id": 5,
+                    "options": {
+                        "default": "k_ETournamentType_Unknown"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "ETournamentTemplate",
+                    "name": "tournament_template",
+                    "id": 6,
+                    "options": {
+                        "default": "k_ETournamentTemplate_None"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_id",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "start_time",
+                    "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "ETournamentState",
+                    "name": "state",
+                    "id": 9,
+                    "options": {
+                        "default": "k_ETournamentState_Unknown"
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "Node",
+                    "name": "nodes",
+                    "id": 10
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Team",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "team_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "team_name",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "team_abbrev",
+                            "id": 3
+                        },
+                        {
+                            "rule": "repeated",
+                            "type": "uint32",
+                            "name": "players",
+                            "id": 4,
+                            "options": {
+                                "packed": true
+                            }
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "seed",
+                            "id": 5
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint64",
+                            "name": "team_logo",
+                            "id": 6
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "country_code",
+                            "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "node_or_state",
+                            "id": 8
+                        }
+                    ]
+                },
+                {
+                    "name": "Game",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "game_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "good_team_id",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "bad_team_id",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "good_team_seed",
+                            "id": 12
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "bad_team_seed",
+                            "id": 13
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "fixed64",
+                            "name": "lobby_id",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint64",
+                            "name": "match_id",
+                            "id": 5
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "game_name",
+                            "id": 6
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "bool",
+                            "name": "live_stream",
+                            "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "message",
+                            "id": 9
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "bool",
+                            "name": "results_final",
+                            "id": 10
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "ETournamentGameState",
+                            "name": "state",
+                            "id": 14,
+                            "options": {
+                                "default": "k_ETournamentGameState_Unknown"
+                            }
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "node_id",
+                            "id": 15
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "start_time",
+                            "id": 16
+                        }
+                    ]
+                },
+                {
+                    "name": "Node",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "node_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "team_seed_a",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "team_seed_b",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "winner_node",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "loser_node",
+                            "id": 5
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "series_type",
+                            "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "ETournamentNodeState",
+                            "name": "node_state",
+                            "id": 8,
+                            "options": {
+                                "default": "k_ETournamentNodeState_Unknown"
+                            }
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "series_id",
+                            "id": 9
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "start_time",
+                            "id": 16
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTATournamentRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "tournament_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "client_tournament_gid",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTATournamentResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": 2
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgDOTATournament",
+                    "name": "tournament",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAClearTournamentGame",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "tournament_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "game_id",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAPassportVoteTeamGuess",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "winner_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "runnerup_id",
+                    "id": 3
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAPassportVoteGenericSelection",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "DOTA_2013PassportSelectionIndices",
+                    "name": "selection_index",
+                    "id": 1,
+                    "options": {
+                        "default": "PP13_SEL_ALLSTAR_PLAYER_0"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "selection",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAPassportStampedPlayer",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "steam_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "stamp_level",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAPassportPlayerCardChallenge",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "challenge_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTAPassportVote",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "CMsgDOTAPassportVoteTeamGuess",
+                    "name": "team_votes",
+                    "id": 1
+                },
+                {
+                    "rule": "repeated",
+                    "type": "CMsgDOTAPassportVoteGenericSelection",
+                    "name": "generic_selections",
+                    "id": 2
+                },
+                {
+                    "rule": "repeated",
+                    "type": "CMsgDOTAPassportStampedPlayer",
+                    "name": "stamped_players",
+                    "id": 3
+                },
+                {
+                    "rule": "repeated",
+                    "type": "CMsgDOTAPassportPlayerCardChallenge",
+                    "name": "player_card_challenges",
+                    "id": 4
+                }
+            ]
+        },
+        {
+            "name": "CMsgPassportDataRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgPassportDataResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "result",
+                    "id": 2,
+                    "options": {
+                        "default": 2
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgDOTATournament",
+                    "name": "international",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "east_qualifiers_predict_end_time",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "west_qualifiers_predict_end_time",
+                    "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "allstar_match_end_time",
+                    "id": 9
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgDOTAPassportVote",
+                    "name": "league_guesses",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "east_qualifiers_winner_team_id",
+                    "id": 10
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "east_qualifiers_runner_up_team_id",
+                    "id": 11
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "west_qualifiers_winner_team_id",
+                    "id": 12
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "west_qualifiers_runner_up_team_id",
+                    "id": 13
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "passports_bought",
+                    "id": 14
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "original_purchaser_id",
+                    "id": 15
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_team_count",
+                    "id": 16
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_teamexpiration",
+                    "id": 17
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "fantasy_teams_will_lock_at",
+                    "id": 18
+                }
+            ]
+        },
+        {
             "name": "CMsgStartFindingMatch",
             "fields": [
                 {
@@ -14752,16 +18227,27 @@ module.exports={
             ]
         },
         {
-            "name": "CMsgClientToGCTopLeagueMatchesRequest",
-            "fields": []
-        },
-        {
-            "name": "CMsgClientToGCTopFriendMatchesRequest",
-            "fields": []
-        },
-        {
-            "name": "CMsgClientToGCTopPubMatchesRequest",
-            "fields": []
+            "name": "CMsgClientToGCTopMatchesRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "hero_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "player_account_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_id",
+                    "id": 3
+                }
+            ]
         },
         {
             "name": "CMsgGCToClientTopMatchesResponse",
@@ -14793,10 +18279,6 @@ module.exports={
                         {
                             "name": "FRIENDS",
                             "id": 2
-                        },
-                        {
-                            "name": "PUBS",
-                            "id": 3
                         }
                     ]
                 }
@@ -15127,6 +18609,18 @@ module.exports={
                     "type": "fixed64",
                     "name": "custom_game_crc",
                     "id": 34
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_series_id",
+                    "id": 35
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_game_id",
+                    "id": 36
                 },
                 {
                     "rule": "optional",
@@ -16030,346 +19524,6 @@ module.exports={
                     "type": "uint32",
                     "name": "initial_skill",
                     "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTATournament",
-            "fields": [
-                {
-                    "rule": "repeated",
-                    "type": "Team",
-                    "name": "teams",
-                    "id": 1
-                },
-                {
-                    "rule": "repeated",
-                    "type": "Game",
-                    "name": "games",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "gid",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "tournament_id",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "ETournamentType",
-                    "name": "tournament_type",
-                    "id": 5,
-                    "options": {
-                        "default": "k_ETournamentType_Unknown"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "ETournamentTemplate",
-                    "name": "tournament_template",
-                    "id": 6,
-                    "options": {
-                        "default": "k_ETournamentTemplate_None"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "league_id",
-                    "id": 7
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "start_time",
-                    "id": 8
-                },
-                {
-                    "rule": "optional",
-                    "type": "ETournamentState",
-                    "name": "state",
-                    "id": 9,
-                    "options": {
-                        "default": "k_ETournamentState_Unknown"
-                    }
-                },
-                {
-                    "rule": "repeated",
-                    "type": "Node",
-                    "name": "nodes",
-                    "id": 10
-                }
-            ],
-            "messages": [
-                {
-                    "name": "Team",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "team_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "team_name",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "team_abbrev",
-                            "id": 3
-                        },
-                        {
-                            "rule": "repeated",
-                            "type": "uint32",
-                            "name": "players",
-                            "id": 4,
-                            "options": {
-                                "packed": true
-                            }
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "seed",
-                            "id": 5
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint64",
-                            "name": "team_logo",
-                            "id": 6
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "country_code",
-                            "id": 7
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "node_or_state",
-                            "id": 8
-                        }
-                    ]
-                },
-                {
-                    "name": "Game",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "game_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "good_team_id",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "bad_team_id",
-                            "id": 3
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "good_team_seed",
-                            "id": 12
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "bad_team_seed",
-                            "id": 13
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "fixed64",
-                            "name": "lobby_id",
-                            "id": 4
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint64",
-                            "name": "match_id",
-                            "id": 5
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "game_name",
-                            "id": 6
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "bool",
-                            "name": "live_stream",
-                            "id": 7
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "message",
-                            "id": 9
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "bool",
-                            "name": "results_final",
-                            "id": 10
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "ETournamentGameState",
-                            "name": "state",
-                            "id": 14,
-                            "options": {
-                                "default": "k_ETournamentGameState_Unknown"
-                            }
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "node_id",
-                            "id": 15
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "start_time",
-                            "id": 16
-                        }
-                    ]
-                },
-                {
-                    "name": "Node",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "node_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "team_seed_a",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "team_seed_b",
-                            "id": 3
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "winner_node",
-                            "id": 4
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "loser_node",
-                            "id": 5
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "series_type",
-                            "id": 7
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "ETournamentNodeState",
-                            "name": "node_state",
-                            "id": 8,
-                            "options": {
-                                "default": "k_ETournamentNodeState_Unknown"
-                            }
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "series_id",
-                            "id": 9
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "start_time",
-                            "id": 16
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTATournamentRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "tournament_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "client_tournament_gid",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTATournamentResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": 2
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "CMsgDOTATournament",
-                    "name": "tournament",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAClearTournamentGame",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "tournament_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "game_id",
-                    "id": 2
                 }
             ]
         },
@@ -18856,9 +22010,15 @@ module.exports={
                 },
                 {
                     "rule": "optional",
+                    "type": "bool",
+                    "name": "coin_flip",
+                    "id": 13
+                },
+                {
+                    "rule": "optional",
                     "type": "int32",
                     "name": "player_id",
-                    "id": 13,
+                    "id": 14,
                     "options": {
                         "default": -1
                     }
@@ -21933,332 +25093,6 @@ module.exports={
             ]
         },
         {
-            "name": "CMsgDOTAPassportVoteTeamGuess",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "winner_id",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "runnerup_id",
-                    "id": 3
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAPassportVoteGenericSelection",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "DOTA_2013PassportSelectionIndices",
-                    "name": "selection_index",
-                    "id": 1,
-                    "options": {
-                        "default": "PP13_SEL_ALLSTAR_PLAYER_0"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "selection",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAPassportStampedPlayer",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "steam_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "stamp_level",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAPassportPlayerCardChallenge",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "challenge_id",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAPassportVote",
-            "fields": [
-                {
-                    "rule": "repeated",
-                    "type": "CMsgDOTAPassportVoteTeamGuess",
-                    "name": "team_votes",
-                    "id": 1
-                },
-                {
-                    "rule": "repeated",
-                    "type": "CMsgDOTAPassportVoteGenericSelection",
-                    "name": "generic_selections",
-                    "id": 2
-                },
-                {
-                    "rule": "repeated",
-                    "type": "CMsgDOTAPassportStampedPlayer",
-                    "name": "stamped_players",
-                    "id": 3
-                },
-                {
-                    "rule": "repeated",
-                    "type": "CMsgDOTAPassportPlayerCardChallenge",
-                    "name": "player_card_challenges",
-                    "id": 4
-                }
-            ]
-        },
-        {
-            "name": "CMsgPassportDataRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "account_id",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgPassportDataResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "account_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "result",
-                    "id": 2,
-                    "options": {
-                        "default": 2
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "CMsgDOTATournament",
-                    "name": "international",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "east_qualifiers_predict_end_time",
-                    "id": 7
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "west_qualifiers_predict_end_time",
-                    "id": 8
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "allstar_match_end_time",
-                    "id": 9
-                },
-                {
-                    "rule": "optional",
-                    "type": "CMsgDOTAPassportVote",
-                    "name": "league_guesses",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "east_qualifiers_winner_team_id",
-                    "id": 10
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "east_qualifiers_runner_up_team_id",
-                    "id": 11
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "west_qualifiers_winner_team_id",
-                    "id": 12
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "west_qualifiers_runner_up_team_id",
-                    "id": 13
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "passports_bought",
-                    "id": 14
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "original_purchaser_id",
-                    "id": 15
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_team_count",
-                    "id": 16
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_teamexpiration",
-                    "id": 17
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_teams_will_lock_at",
-                    "id": 18
-                }
-            ]
-        },
-        {
-            "name": "CMsgHeroPickStatsRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "league_id",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "hero_id",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "matches_since_time",
-                    "id": 4
-                }
-            ]
-        },
-        {
-            "name": "CMsgHeroPickStatPlayer",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "account_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "win",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "gpm",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "kills",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "deaths",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "assists",
-                    "id": 6
-                }
-            ]
-        },
-        {
-            "name": "CMsgHeroPickStatsResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "hero_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "total_picks",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "total_wins",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_picks",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_wins",
-                    "id": 5
-                },
-                {
-                    "rule": "repeated",
-                    "type": "CMsgHeroPickStatPlayer",
-                    "name": "player_pick",
-                    "id": 6
-                }
-            ]
-        },
-        {
             "name": "CMsgRequestLeaguePrizePool",
             "fields": [
                 {
@@ -23516,6 +26350,21 @@ module.exports={
             ]
         },
         {
+            "name": "CMsgClientToGCGetAllHeroOrder",
+            "fields": []
+        },
+        {
+            "name": "CMsgClientToGCGetAllHeroOrderResponse",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "hero_ids",
+                    "id": 1
+                }
+            ]
+        },
+        {
             "name": "CMsgClientToGCGetAllHeroProgress",
             "fields": [
                 {
@@ -23642,6 +26491,12 @@ module.exports={
                     "type": "string",
                     "name": "profile_name",
                     "id": 19
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "start_hero_id",
+                    "id": 20
                 }
             ]
         },
@@ -23693,6 +26548,12 @@ module.exports={
                             "type": "uint32",
                             "name": "trophy_score",
                             "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "last_updated",
+                            "id": 3
                         }
                     ]
                 }
@@ -23718,6 +26579,12 @@ module.exports={
                     "type": "uint32",
                     "name": "trophy_old_score",
                     "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "last_updated",
+                    "id": 4
                 }
             ]
         },
@@ -24758,2791 +27625,216 @@ module.exports={
             ]
         },
         {
-            "name": "CMsgGCPlayerInfo",
+            "name": "CMsgClientToGCGetLeagueSeries",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCGetLeagueSeriesResponse",
             "fields": [
                 {
                     "rule": "repeated",
-                    "type": "PlayerInfo",
-                    "name": "player_infos",
+                    "type": "Series",
+                    "name": "series",
                     "id": 1
                 }
             ],
             "messages": [
                 {
-                    "name": "PlayerInfo",
+                    "name": "Series",
                     "fields": [
                         {
                             "rule": "optional",
                             "type": "uint32",
-                            "name": "account_id",
+                            "name": "series_id",
                             "id": 1
                         },
                         {
                             "rule": "optional",
-                            "type": "string",
-                            "name": "name",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "country_code",
-                            "id": 3
-                        },
-                        {
-                            "rule": "optional",
                             "type": "uint32",
-                            "name": "fantasy_role",
-                            "id": 4
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "team_id",
-                            "id": 5
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "team_name",
-                            "id": 6
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "team_tag",
-                            "id": 7
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "sponsor",
-                            "id": 8
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "bool",
-                            "name": "is_locked",
-                            "id": 9
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTACreateFantasyLeagueRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "league_name",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "league_logo",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "Fantasy_Selection_Mode",
-                    "name": "selection_mode",
-                    "id": 3,
-                    "options": {
-                        "default": "FANTASY_SELECTION_INVALID"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_count",
-                    "id": 4
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTACreateFantasyLeagueResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_TOO_MANY_LEAGUES",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_INVALID_TEAM_COUNT",
-                            "id": 3
-                        },
-                        {
-                            "name": "ERROR_CREATION_DISABLED",
-                            "id": 4
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgFantasyLeagueScoring",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "level",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "kills",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "deaths",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "assists",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "last_hits",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "denies",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "gpm",
-                    "id": 7
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "xppm",
-                    "id": 8
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "stuns",
-                    "id": 9
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "healing",
-                    "id": 10
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "tower_kills",
-                    "id": 11
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "roshan_kills",
-                    "id": 12
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "multiplier_premium",
-                    "id": 13
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "multiplier_professional",
-                    "id": 14
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueInfo",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "commissioner_account_id",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "fantasy_league_name",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "Fantasy_Selection_Mode",
-                    "name": "selection_mode",
-                    "id": 4,
-                    "options": {
-                        "default": "FANTASY_SELECTION_INVALID"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_count",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "logo",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "CMsgFantasyLeagueScoring",
-                    "name": "scoring",
-                    "id": 7
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "draft_time",
-                    "id": 12
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "draft_pick_time",
-                    "id": 13
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "season_start",
-                    "id": 15
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "season_length",
-                    "id": 16
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "veto_votes",
-                    "id": 17
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "acquisitions",
-                    "id": 18
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "slot_1",
-                    "id": 19
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "slot_2",
-                    "id": 20
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "slot_3",
-                    "id": 21
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "slot_4",
-                    "id": 22
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "slot_5",
-                    "id": 23
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "bench_slots",
-                    "id": 24
-                },
-                {
-                    "rule": "repeated",
-                    "type": "OwnerInfo",
-                    "name": "owner_info",
-                    "id": 25
-                },
-                {
-                    "rule": "repeated",
-                    "type": "uint32",
-                    "name": "players",
-                    "id": 26
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "time_zone",
-                    "id": 27
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "season",
-                    "id": 28
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "password",
-                    "id": 29
-                }
-            ],
-            "messages": [
-                {
-                    "name": "OwnerInfo",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "owner_account_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "bool",
-                            "name": "left_league",
+                            "name": "num_games",
                             "id": 2
                         },
                         {
                             "rule": "repeated",
-                            "type": "uint32",
-                            "name": "player_account_id",
-                            "id": 3
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueEditInfoRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "CMsgDOTAFantasyLeagueInfo",
-                    "name": "edit_info",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueEditInfoResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueFindRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "password",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueFindResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "fantasy_league_name",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "commissioner_name",
-                    "id": 3
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_LEAGUE_NOT_FOUND",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_BAD_PASSWORD",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
+                            "type": "Team",
+                            "name": "teams",
                             "id": 3
                         },
                         {
-                            "name": "ERROR_FULL",
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "series_name",
                             "id": 4
                         },
                         {
-                            "name": "ERROR_ALREADY_MEMBER",
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "phase_name",
                             "id": 5
-                        },
-                        {
-                            "name": "ERROR_LEAGUE_LOCKED",
-                            "id": 6
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueInfoRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueInfoResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_BAD_LEAGUE_ID",
-                            "id": 2
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueMatchupsRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueMatchupsResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 2
-                },
-                {
-                    "rule": "repeated",
-                    "type": "WeeklyMatchups",
-                    "name": "weekly_matchups",
-                    "id": 3
-                }
-            ],
-            "messages": [
-                {
-                    "name": "Matchup",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "owner_account_id_1",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "owner_account_id_2",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "score_1",
-                            "id": 3
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "score_2",
-                            "id": 4
-                        }
-                    ]
-                },
-                {
-                    "name": "WeeklyMatchups",
-                    "fields": [
-                        {
-                            "rule": "repeated",
-                            "type": "Matchup",
-                            "name": "matchup",
-                            "id": 1
                         },
                         {
                             "rule": "optional",
                             "type": "uint32",
                             "name": "start_time",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "end_time",
-                            "id": 3
-                        }
-                    ]
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_BAD_LEAGUE_ID",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 3
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAEditFantasyTeamRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_index",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "team_name",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "team_logo",
-                    "id": 4
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAEditFantasyTeamResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_INVALID_TEAM_INFO",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_NAME_ALREADY_TAKEN",
-                            "id": 3
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 4
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamInfoRequestByFantasyLeagueID",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamInfoRequestByOwnerAccountID",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "owner_account_id",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamInfoResponse",
-            "fields": [
-                {
-                    "rule": "repeated",
-                    "type": "CMsgDOTAFantasyTeamInfo",
-                    "name": "results",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamInfo",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "owner_account_id",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_team_index",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "team_name",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "team_logo",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "wins",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "losses",
-                    "id": 7
-                },
-                {
-                    "rule": "repeated",
-                    "type": "uint32",
-                    "name": "current_roster",
-                    "id": 8
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamScoreRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "owner_account_id",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_team_index",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "filter_match_id",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "filter_start_time",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "filter_end_time",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "include_bench",
-                    "id": 7
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamScoreResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "fantasy_team_score",
-                    "id": 2
-                },
-                {
-                    "rule": "repeated",
-                    "type": "CMsgPlayerScore",
-                    "name": "fantasy_player_score",
-                    "id": 3
-                }
-            ],
-            "messages": [
-                {
-                    "name": "CMsgPlayerScore",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "account_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "score",
-                            "id": 2
-                        }
-                    ]
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_OWNER_NOT_IN_LEAGUE",
-                            "id": 3
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamStandingsRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "count",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "filter_start_time",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "filter_end_time",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "filter_match_id",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "filter_last_match",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "filter_in_hall",
-                    "id": 7
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamStandingsResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "repeated",
-                    "type": "CMsgTeamScore",
-                    "name": "team_scores",
-                    "id": 3
-                }
-            ],
-            "messages": [
-                {
-                    "name": "CMsgTeamScore",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "fantasy_league_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "owner_account_id",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "fantasy_team_index",
-                            "id": 3
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint64",
-                            "name": "fantasy_team_logo",
-                            "id": 4
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "owner_name",
-                            "id": 5
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "fantasy_team_name",
                             "id": 6
                         },
                         {
                             "rule": "optional",
-                            "type": "float",
-                            "name": "score",
-                            "id": 7
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "score_against",
-                            "id": 8
-                        },
-                        {
-                            "rule": "optional",
                             "type": "uint32",
-                            "name": "wins",
-                            "id": 9
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "losses",
-                            "id": 10
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "int32",
-                            "name": "streak",
-                            "id": 11
-                        }
-                    ]
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyPlayerScoreRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "player_account_id",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "filter_start_time",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "filter_end_time",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "filter_match_id",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "filter_last_match",
-                    "id": 6
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyPlayerScoreResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "player_account_id",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "player_name",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "float",
-                    "name": "score",
-                    "id": 5
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyPlayerStandingsRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "count",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "role",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "filter_start_time",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "filter_end_time",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "filter_match_id",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "filter_last_match",
-                    "id": 7
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyPlayerStandingsResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "role",
-                    "id": 3
-                },
-                {
-                    "rule": "repeated",
-                    "type": "CMsgPlayerScore",
-                    "name": "player_scores",
-                    "id": 4
-                }
-            ],
-            "messages": [
-                {
-                    "name": "CMsgPlayerScore",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "player_account_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "player_name",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "score",
-                            "id": 3
-                        }
-                    ]
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyPlayerInfoRequest",
-            "fields": []
-        },
-        {
-            "name": "CMsgDOTAFantasyPlayerInfoResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CMsgGCPlayerInfo",
-                    "name": "msg",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueCreateRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "season_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "fantasy_league_name",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "password",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "team_name",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "logo",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "ticket_item_id",
-                    "id": 6
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueCreateResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 2
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_BAD_SEASON_ID",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_BAD_LEAGUE_NAME",
-                            "id": 3
-                        },
-                        {
-                            "name": "ERROR_BAD_TEAM_NAME",
-                            "id": 4
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 5
-                        },
-                        {
-                            "name": "ERROR_FAILED_LOGO_UPLOAD",
-                            "id": 6
-                        },
-                        {
-                            "name": "ERROR_NO_TICKET",
+                            "name": "after_series_id",
                             "id": 7
                         }
+                    ],
+                    "messages": [
+                        {
+                            "name": "Team",
+                            "fields": [
+                                {
+                                    "rule": "optional",
+                                    "type": "uint32",
+                                    "name": "team_id",
+                                    "id": 1
+                                },
+                                {
+                                    "rule": "optional",
+                                    "type": "string",
+                                    "name": "team_name",
+                                    "id": 2
+                                },
+                                {
+                                    "rule": "optional",
+                                    "type": "string",
+                                    "name": "team_tag",
+                                    "id": 3
+                                },
+                                {
+                                    "rule": "optional",
+                                    "type": "uint32",
+                                    "name": "team_score",
+                                    "id": 4
+                                }
+                            ]
+                        }
                     ]
                 }
             ]
         },
         {
-            "name": "CMsgDOTAFantasyTeamCreateRequest",
+            "name": "CMsgClientToGCApplyGemCombiner",
             "fields": [
                 {
                     "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
+                    "type": "uint64",
+                    "name": "item_id_1",
                     "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "password",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "team_name",
-                    "id": 3
                 },
                 {
                     "rule": "optional",
                     "type": "uint64",
-                    "name": "logo",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "ticket_item_id",
-                    "id": 5
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamCreateResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_team_index",
+                    "name": "item_id_2",
                     "id": 2
                 }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_FAILED_LOGO_UPLOAD",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_BAD_FANTASY_LEAGUE_ID",
-                            "id": 3
-                        },
-                        {
-                            "name": "ERROR_BAD_NAME",
-                            "id": 4
-                        },
-                        {
-                            "name": "ERROR_FULL",
-                            "id": 5
-                        },
-                        {
-                            "name": "ERROR_ALREADY_MEMBER",
-                            "id": 6
-                        },
-                        {
-                            "name": "ERROR_BAD_PASSWORD",
-                            "id": 7
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 8
-                        },
-                        {
-                            "name": "ERROR_NO_TICKET",
-                            "id": 9
-                        },
-                        {
-                            "name": "ERROR_LEAGUE_LOCKED",
-                            "id": 10
-                        }
-                    ]
-                }
             ]
         },
         {
-            "name": "CMsgDOTAFantasyLeagueEditInvitesRequest",
+            "name": "CDummyUnbreakMessage",
             "fields": [
                 {
                     "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
+                    "type": "CMsgDOTAClearTournamentGame",
+                    "name": "dummy_field",
                     "id": 1
                 },
                 {
                     "rule": "optional",
-                    "type": "string",
-                    "name": "password",
-                    "id": 2
-                },
+                    "type": "ETournamentState",
+                    "name": "another_dummy_field",
+                    "id": 2,
+                    "options": {
+                        "default": "k_ETournamentState_Unknown"
+                    }
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCCreateStaticRecipe",
+            "fields": [
                 {
                     "rule": "repeated",
-                    "type": "InviteChange",
-                    "name": "invite_change",
-                    "id": 3
-                }
-            ],
-            "messages": [
-                {
-                    "name": "InviteChange",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "account_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "bool",
-                            "name": "invited",
-                            "id": 2
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueEditInvitesResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueDraftStatusRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueDraftStatus",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "repeated",
-                    "type": "uint32",
-                    "name": "draft_order",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "current_pick",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "time_remaining",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "pending_resume",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "completed",
-                    "id": 6
-                },
-                {
-                    "rule": "repeated",
-                    "type": "uint32",
-                    "name": "available_players",
-                    "id": 7
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueDraftPlayerRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
+                    "type": "Item",
+                    "name": "items",
                     "id": 1
                 },
                 {
                     "rule": "optional",
                     "type": "uint32",
-                    "name": "team_index",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "player_account_id",
-                    "id": 3
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeagueDraftPlayerResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_INVALID_FANTASY_LEAGUE",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_FANTASY_LEAGUE_NOT_DRAFTING",
-                            "id": 3
-                        },
-                        {
-                            "name": "ERROR_OWNER_NOT_IN_LEAGUE",
-                            "id": 4
-                        },
-                        {
-                            "name": "ERROR_NOT_OWNERS_TURN",
-                            "id": 5
-                        },
-                        {
-                            "name": "ERROR_PLAYER_INVALID",
-                            "id": 6
-                        },
-                        {
-                            "name": "ERROR_PLAYER_UNAVAILABLE",
-                            "id": 7
-                        },
-                        {
-                            "name": "ERROR_PLAYER_NO_VALID_SLOTS",
-                            "id": 8
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamRosterSwapRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_index",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "timestamp",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "slot_1",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "slot_2",
-                    "id": 5
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamRosterSwapResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_OWNER_NOT_IN_LEAGUE",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_SLOTS_INVALID",
-                            "id": 3
-                        },
-                        {
-                            "name": "ERROR_SLOT_LOCKED",
-                            "id": 4
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamRosterAddDropRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_index",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "add_account_id",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "drop_account_id",
-                    "id": 6
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamRosterAddDropResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_OWNER_NOT_IN_LEAGUE",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_PLAYER_NOT_AVAILABLE",
-                            "id": 3
-                        },
-                        {
-                            "name": "ERROR_PLAYER_NOT_ON_TEAM",
-                            "id": 4
-                        },
-                        {
-                            "name": "ERROR_TRADE_ALREADY_PENDING",
-                            "id": 5
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamTradesRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamTradesResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "repeated",
-                    "type": "Trade",
-                    "name": "trades",
+                    "name": "recipe_def_index",
                     "id": 2
                 }
             ],
             "messages": [
                 {
-                    "name": "Trade",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "timestamp",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "owner_account_id_1",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "owner_account_id_2",
-                            "id": 3
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "player_account_id_1",
-                            "id": 4
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "player_account_id_2",
-                            "id": 5
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "status",
-                            "id": 6
-                        }
-                    ]
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamTradeCancelRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_index_1",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "owner_account_id_2",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_index_2",
-                    "id": 5
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamTradeCancelResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_NO_TRADE",
-                            "id": 3
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamRosterRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_index",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "owner_account_id",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "timestamp",
-                    "id": 4
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyTeamRosterResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "repeated",
-                    "type": "uint32",
-                    "name": "player_account_ids",
-                    "id": 2
-                },
-                {
-                    "rule": "repeated",
-                    "type": "bool",
-                    "name": "player_locked",
-                    "id": 3
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_OWNER_NOT_IN_LEAGUE",
-                            "id": 3
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyPlayerHisoricalStatsRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyPlayerHisoricalStatsResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "repeated",
-                    "type": "PlayerStats",
-                    "name": "stats",
-                    "id": 2
-                }
-            ],
-            "messages": [
-                {
-                    "name": "PlayerScoreAccumulator",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "matches",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "levels",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "kills",
-                            "id": 3
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "deaths",
-                            "id": 4
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "assists",
-                            "id": 5
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "last_hits",
-                            "id": 6
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "denies",
-                            "id": 7
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "gpm",
-                            "id": 8
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "xppm",
-                            "id": 9
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "stuns",
-                            "id": 10
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "healing",
-                            "id": 11
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "tower_kills",
-                            "id": 12
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "roshan_kills",
-                            "id": 13
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "float",
-                            "name": "score",
-                            "id": 14
-                        }
-                    ]
-                },
-                {
-                    "name": "PlayerStats",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "account_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "weeks",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "PlayerScoreAccumulator",
-                            "name": "stats_premium",
-                            "id": 4
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "PlayerScoreAccumulator",
-                            "name": "stats_professional",
-                            "id": 5
-                        }
-                    ]
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyMessageAdd",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "message",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyMessagesRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "start_message",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "end_message",
-                    "id": 3
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyMessagesResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "repeated",
-                    "type": "Message",
-                    "name": "messages",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "num_total_messages",
-                    "id": 3
-                }
-            ],
-            "messages": [
-                {
-                    "name": "Message",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "message_id",
-                            "id": 1
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "message",
-                            "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "author_account_id",
-                            "id": 3
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "time",
-                            "id": 4
-                        }
-                    ]
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyRemoveOwner",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "owner_account_id",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_index",
-                    "id": 3
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyRemoveOwnerResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NO_PERMISSION",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_LEAGUE_LOCKED",
-                            "id": 3
-                        },
-                        {
-                            "name": "ERROR_NOT_A_MEMBER",
-                            "id": 4
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyScheduledMatchesRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyScheduledMatchesResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "repeated",
-                    "type": "ScheduledMatchDays",
-                    "name": "scheduled_match_days",
-                    "id": 2
-                }
-            ],
-            "messages": [
-                {
-                    "name": "ScheduledMatchDays",
-                    "fields": [
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "timestamp",
-                            "id": 1
-                        },
-                        {
-                            "rule": "repeated",
-                            "type": "uint32",
-                            "name": "team_ids",
-                            "id": 2
-                        },
-                        {
-                            "rule": "repeated",
-                            "type": "uint32",
-                            "name": "league_ids",
-                            "id": 3
-                        }
-                    ]
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeaveLeagueRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_team_index",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyLeaveLeagueResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResult",
-                    "values": [
-                        {
-                            "name": "SUCCESS",
-                            "id": 0
-                        },
-                        {
-                            "name": "ERROR_UNSPECIFIED",
-                            "id": 1
-                        },
-                        {
-                            "name": "ERROR_NOT_MEMBER",
-                            "id": 2
-                        },
-                        {
-                            "name": "ERROR_LEAGUE_NOT_FOUND",
-                            "id": 3
-                        },
-                        {
-                            "name": "ERROR_DRAFT_ACTIVE",
-                            "id": 4
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyPlayerScoreDetailsRequest",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "fantasy_league_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "player_account_id",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "start_time",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "end_time",
-                    "id": 4
-                }
-            ]
-        },
-        {
-            "name": "CMsgDOTAFantasyPlayerScoreDetailsResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResult",
-                    "name": "result",
-                    "id": 1,
-                    "options": {
-                        "default": "SUCCESS"
-                    }
-                },
-                {
-                    "rule": "repeated",
-                    "type": "PlayerMatchData",
-                    "name": "data",
-                    "id": 2
-                }
-            ],
-            "messages": [
-                {
-                    "name": "PlayerMatchData",
+                    "name": "Item",
                     "fields": [
                         {
                             "rule": "optional",
                             "type": "uint64",
-                            "name": "match_id",
+                            "name": "item_id",
                             "id": 1
                         },
                         {
                             "rule": "optional",
                             "type": "uint32",
-                            "name": "series_id",
+                            "name": "slot_id",
                             "id": 2
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "series_num",
-                            "id": 3
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "series_type",
-                            "id": 4
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "league_tier",
-                            "id": 5
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "league_id",
-                            "id": 6
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "opposing_team_id",
-                            "id": 7
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint64",
-                            "name": "opposing_team_logo",
-                            "id": 8
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "string",
-                            "name": "opposing_team_name",
-                            "id": 9
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "CMsgFantasyLeagueScoring",
-                            "name": "stats",
-                            "id": 10
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "uint32",
-                            "name": "owned_by",
-                            "id": 11
-                        },
-                        {
-                            "rule": "optional",
-                            "type": "bool",
-                            "name": "benched",
-                            "id": 12
                         }
                     ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCCreateStaticRecipeResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResponse",
+                    "name": "response",
+                    "id": 1,
+                    "options": {
+                        "default": "eResponse_Success"
+                    }
                 }
             ],
             "enums": [
                 {
-                    "name": "EResult",
+                    "name": "EResponse",
                     "values": [
                         {
-                            "name": "SUCCESS",
+                            "name": "eResponse_Success",
                             "id": 0
                         },
                         {
-                            "name": "ERROR_UNSPECIFIED",
+                            "name": "eResponse_OfferingDisabled",
                             "id": 1
                         },
                         {
-                            "name": "ERROR_NOT_MEMBER",
+                            "name": "eResponse_InvalidItems",
                             "id": 2
+                        },
+                        {
+                            "name": "eResponse_InternalError",
+                            "id": 3
+                        },
+                        {
+                            "name": "eResponse_MissingLeague",
+                            "id": 4
                         }
                     ]
                 }
@@ -28618,6 +28910,189 @@ module.exports={
             ]
         },
         {
+            "name": "CMsgClientToGCUnlockItemStyle",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "item_to_unlock",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "style_index",
+                    "id": 2
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint64",
+                    "name": "consumable_item_ids",
+                    "id": 3
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCUnlockItemStyleResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EUnlockStyle",
+                    "name": "response",
+                    "id": 1,
+                    "options": {
+                        "default": "k_UnlockStyle_Succeeded"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "item_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "style_index",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "style_prereq",
+                    "id": 4
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EUnlockStyle",
+                    "values": [
+                        {
+                            "name": "k_UnlockStyle_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_PreReq",
+                            "id": 1
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_CantAfford",
+                            "id": 2
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_CantCommit",
+                            "id": 3
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_CantLockCache",
+                            "id": 4
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_CantAffordAttrib",
+                            "id": 5
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_CantAffordGem",
+                            "id": 6
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_NoCompendiumLevel",
+                            "id": 7
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_AlreadyUnlocked",
+                            "id": 8
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCSetItemInventoryCategory",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "uint64",
+                    "name": "item_ids",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "set_to_value",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "remove_categories",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "add_categories",
+                    "id": 4
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCUnlockCrate",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "crate_item_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "key_item_id",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCUnlockCrateResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EGCMsgResponse",
+                    "name": "result",
+                    "id": 1,
+                    "options": {
+                        "default": "k_EGCMsgResponseOK"
+                    }
+                },
+                {
+                    "rule": "repeated",
+                    "type": "Item",
+                    "name": "granted_items",
+                    "id": 2
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Item",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint64",
+                            "name": "item_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "def_index",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "name": "CMsgSpawnLootGreevil",
             "fields": [
                 {
@@ -28973,6 +29448,12 @@ module.exports={
                     "type": "uint32",
                     "name": "server_tv_port",
                     "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "assigned_server_tv_port",
+                    "id": 22
                 },
                 {
                     "rule": "optional",
@@ -32492,8 +32973,14 @@ module.exports={
                 {
                     "rule": "optional",
                     "type": "string",
-                    "name": "lua_name",
+                    "name": "player_ids",
                     "id": 31
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "lua_name",
+                    "id": 32
                 }
             ]
         },
@@ -35665,6 +36152,32 @@ module.exports={
                     "type": "float",
                     "name": "end_time",
                     "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "int32",
+                    "name": "victim_ent_index",
+                    "id": 8
+                }
+            ]
+        },
+        {
+            "name": "CDOTAUserMsg_ProjectionEvent",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EProjectionEvent",
+                    "name": "event_id",
+                    "id": 1,
+                    "options": {
+                        "default": "ePE_FirstBlood"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team",
+                    "id": 2
                 }
             ]
         },
@@ -43030,7 +43543,7 @@ module.exports={
             ]
         },
         {
-            "name": "CUserMsg_CustomGameEvent_ClientToServer",
+            "name": "CUserMsg_CustomGameEvent",
             "fields": [
                 {
                     "rule": "optional",
@@ -43043,34 +43556,6 @@ module.exports={
                     "type": "bytes",
                     "name": "data",
                     "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CUserMsg_CustomGameEvent_ServerToClient",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "event_name",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "bytes",
-                    "name": "data",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CUserMsg_TrackedControllerInput_ClientToServer",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "bytes",
-                    "name": "data",
-                    "id": 1
                 }
             ]
         }
@@ -44743,6 +45228,10 @@ module.exports={
                 {
                     "name": "DOTA_CM_ClickedBuff",
                     "id": 348
+                },
+                {
+                    "name": "DOTA_CM_CoinWager",
+                    "id": 349
                 }
             ]
         },
@@ -46537,14 +47026,6 @@ module.exports={
                     "id": 7507
                 },
                 {
-                    "name": "k_EMsgGCHeroPickStatsRequest",
-                    "id": 7508
-                },
-                {
-                    "name": "k_EMsgGCHeroPickStatsResponse",
-                    "id": 7509
-                },
-                {
                     "name": "k_EMsgGCToGCCreateGenericTeamsRequest",
                     "id": 7510
                 },
@@ -46893,8 +47374,44 @@ module.exports={
                     "id": 7598
                 },
                 {
+                    "name": "k_EMsgClientToGCGetLeagueSeries",
+                    "id": 7599
+                },
+                {
+                    "name": "k_EMsgClientToGCGetLeagueSeriesResponse",
+                    "id": 7600
+                },
+                {
+                    "name": "k_EMsgSQLGCToGCSignoutUpdateLeagueSchedule",
+                    "id": 7601
+                },
+                {
                     "name": "k_EMsgGCToServerUpdateBroadcastCheers",
                     "id": 7602
+                },
+                {
+                    "name": "k_EMsgClientToGCApplyGemCombiner",
+                    "id": 7603
+                },
+                {
+                    "name": "k_EMsgClientToGCCreateStaticRecipe",
+                    "id": 7604
+                },
+                {
+                    "name": "k_EMsgClientToGCCreateStaticRecipeResponse",
+                    "id": 7605
+                },
+                {
+                    "name": "k_EMsgClientToGCGetAllHeroOrder",
+                    "id": 7606
+                },
+                {
+                    "name": "k_EMsgClientToGCGetAllHeroOrderResponse",
+                    "id": 7607
+                },
+                {
+                    "name": "k_EMsgSQLGCToGCGrantBadgePoints",
+                    "id": 7608
                 },
                 {
                     "name": "k_EMsgGCDev_GrantWarKill",
@@ -47049,10 +47566,6 @@ module.exports={
                     "id": 8038
                 },
                 {
-                    "name": "k_EMsgClientToGCTopPubMatchesRequest",
-                    "id": 8039
-                },
-                {
                     "name": "k_EMsgGCToClientProfileCardStatsUpdated",
                     "id": 8040
                 },
@@ -47111,6 +47624,18 @@ module.exports={
                 {
                     "name": "k_EMsgSQLGCToGCUpdateHeroMMR",
                     "id": 8056
+                },
+                {
+                    "name": "k_EMsgSQLGCToGCGrantAccountFlag",
+                    "id": 8057
+                },
+                {
+                    "name": "k_EMsgGCToGCGetAccountFlags",
+                    "id": 8058
+                },
+                {
+                    "name": "k_EMsgGCToGCGetAccountFlagsResponse",
+                    "id": 8059
                 }
             ]
         },
@@ -47727,6 +48252,10 @@ module.exports={
                 {
                     "name": "k_EIngameEvent_TI5",
                     "id": 3
+                },
+                {
+                    "name": "k_EIngameEvent_FM2015",
+                    "id": 4
                 }
             ]
         },
@@ -48243,84 +48772,6 @@ module.exports={
             ]
         },
         {
-            "name": "DOTAChatChannelType_t",
-            "values": [
-                {
-                    "name": "DOTAChannelType_Regional",
-                    "id": 0
-                },
-                {
-                    "name": "DOTAChannelType_Custom",
-                    "id": 1
-                },
-                {
-                    "name": "DOTAChannelType_Party",
-                    "id": 2
-                },
-                {
-                    "name": "DOTAChannelType_Lobby",
-                    "id": 3
-                },
-                {
-                    "name": "DOTAChannelType_Team",
-                    "id": 4
-                },
-                {
-                    "name": "DOTAChannelType_Guild",
-                    "id": 5
-                },
-                {
-                    "name": "DOTAChannelType_Fantasy",
-                    "id": 6
-                },
-                {
-                    "name": "DOTAChannelType_Whisper",
-                    "id": 7
-                },
-                {
-                    "name": "DOTAChannelType_Console",
-                    "id": 8
-                },
-                {
-                    "name": "DOTAChannelType_Tab",
-                    "id": 9
-                },
-                {
-                    "name": "DOTAChannelType_Invalid",
-                    "id": 10
-                },
-                {
-                    "name": "DOTAChannelType_GameAll",
-                    "id": 11
-                },
-                {
-                    "name": "DOTAChannelType_GameAllies",
-                    "id": 12
-                },
-                {
-                    "name": "DOTAChannelType_GameSpectator",
-                    "id": 13
-                },
-                {
-                    "name": "DOTAChannelType_GameCoaching",
-                    "id": 14
-                }
-            ]
-        },
-        {
-            "name": "DOTA_WatchReplayType",
-            "values": [
-                {
-                    "name": "DOTA_WATCH_REPLAY_NORMAL",
-                    "id": 0
-                },
-                {
-                    "name": "DOTA_WATCH_REPLAY_HIGHLIGHTS",
-                    "id": 1
-                }
-            ]
-        },
-        {
             "name": "DOTA_2013PassportSelectionIndices",
             "values": [
                 {
@@ -48706,6 +49157,92 @@ module.exports={
                 {
                     "name": "PP13_SEL_SOLO_7",
                     "id": 95
+                }
+            ]
+        },
+        {
+            "name": "DOTAChatChannelType_t",
+            "values": [
+                {
+                    "name": "DOTAChannelType_Regional",
+                    "id": 0
+                },
+                {
+                    "name": "DOTAChannelType_Custom",
+                    "id": 1
+                },
+                {
+                    "name": "DOTAChannelType_Party",
+                    "id": 2
+                },
+                {
+                    "name": "DOTAChannelType_Lobby",
+                    "id": 3
+                },
+                {
+                    "name": "DOTAChannelType_Team",
+                    "id": 4
+                },
+                {
+                    "name": "DOTAChannelType_Guild",
+                    "id": 5
+                },
+                {
+                    "name": "DOTAChannelType_Fantasy",
+                    "id": 6
+                },
+                {
+                    "name": "DOTAChannelType_Whisper",
+                    "id": 7
+                },
+                {
+                    "name": "DOTAChannelType_Console",
+                    "id": 8
+                },
+                {
+                    "name": "DOTAChannelType_Tab",
+                    "id": 9
+                },
+                {
+                    "name": "DOTAChannelType_Invalid",
+                    "id": 10
+                },
+                {
+                    "name": "DOTAChannelType_GameAll",
+                    "id": 11
+                },
+                {
+                    "name": "DOTAChannelType_GameAllies",
+                    "id": 12
+                },
+                {
+                    "name": "DOTAChannelType_GameSpectator",
+                    "id": 13
+                },
+                {
+                    "name": "DOTAChannelType_GameCoaching",
+                    "id": 14
+                },
+                {
+                    "name": "DOTAChannelType_Cafe",
+                    "id": 15
+                },
+                {
+                    "name": "DOTAChannelType_CustomGame",
+                    "id": 16
+                }
+            ]
+        },
+        {
+            "name": "DOTA_WatchReplayType",
+            "values": [
+                {
+                    "name": "DOTA_WATCH_REPLAY_NORMAL",
+                    "id": 0
+                },
+                {
+                    "name": "DOTA_WATCH_REPLAY_HIGHLIGHTS",
+                    "id": 1
                 }
             ]
         },
@@ -49174,14 +49711,6 @@ module.exports={
                     "id": 1079
                 },
                 {
-                    "name": "k_EMsgGCUnlockItemStyle",
-                    "id": 1080
-                },
-                {
-                    "name": "k_EMsgGCUnlockItemStyleResponse",
-                    "id": 1081
-                },
-                {
                     "name": "k_EMsgGCFulfillDynamicRecipeComponent",
                     "id": 1082
                 },
@@ -49564,6 +50093,26 @@ module.exports={
                 {
                     "name": "k_EMsgClientToGCEquipItemsResponse",
                     "id": 2570
+                },
+                {
+                    "name": "k_EMsgClientToGCUnlockItemStyle",
+                    "id": 2571
+                },
+                {
+                    "name": "k_EMsgClientToGCUnlockItemStyleResponse",
+                    "id": 2572
+                },
+                {
+                    "name": "k_EMsgClientToGCSetItemInventoryCategory",
+                    "id": 2573
+                },
+                {
+                    "name": "k_EMsgClientToGCUnlockCrate",
+                    "id": 2574
+                },
+                {
+                    "name": "k_EMsgClientToGCUnlockCrateResponse",
+                    "id": 2575
                 }
             ]
         },
@@ -49604,47 +50153,6 @@ module.exports={
                 },
                 {
                     "name": "k_EGCMsgFailedToCreate",
-                    "id": 8
-                }
-            ]
-        },
-        {
-            "name": "EUnlockStyle",
-            "values": [
-                {
-                    "name": "k_UnlockStyle_Succeeded",
-                    "id": 0
-                },
-                {
-                    "name": "k_UnlockStyle_Failed_PreReq",
-                    "id": 1
-                },
-                {
-                    "name": "k_UnlockStyle_Failed_CantAfford",
-                    "id": 2
-                },
-                {
-                    "name": "k_UnlockStyle_Failed_CantCommit",
-                    "id": 3
-                },
-                {
-                    "name": "k_UnlockStyle_Failed_CantLockCache",
-                    "id": 4
-                },
-                {
-                    "name": "k_UnlockStyle_Failed_CantAffordAttrib",
-                    "id": 5
-                },
-                {
-                    "name": "k_UnlockStyle_Failed_CantAffordGem",
-                    "id": 6
-                },
-                {
-                    "name": "k_UnlockStyle_Failed_NoCompendiumLevel",
-                    "id": 7
-                },
-                {
-                    "name": "k_UnlockStyle_Failed_AlreadyUnlocked",
                     "id": 8
                 }
             ]
@@ -50353,6 +50861,10 @@ module.exports={
                 {
                     "name": "DOTA_UM_ProjectionAbility",
                     "id": 552
+                },
+                {
+                    "name": "DOTA_UM_ProjectionEvent",
+                    "id": 553
                 }
             ]
         },
@@ -51204,6 +51716,15 @@ module.exports={
                 {
                     "name": "kPVLS_AllowShowcase",
                     "id": 73
+                }
+            ]
+        },
+        {
+            "name": "EProjectionEvent",
+            "values": [
+                {
+                    "name": "ePE_FirstBlood",
+                    "id": 0
                 }
             ]
         },
@@ -52091,16 +52612,8 @@ module.exports={
                     "id": 146
                 },
                 {
-                    "name": "UM_CustomGameEvent_ClientToServer",
-                    "id": 147
-                },
-                {
-                    "name": "UM_CustomGameEvent_ServerToClient",
+                    "name": "UM_CustomGameEvent",
                     "id": 148
-                },
-                {
-                    "name": "UM_TrackedControllerInput_ClientToServer",
-                    "id": 149
                 },
                 {
                     "name": "UM_MAX_BASE",
@@ -52364,9 +52877,7 @@ module.exports={
     "144": "CUserMessageAudioParameter",
     "145": "CUserMessageParticleManager",
     "146": "CUserMessageHudError",
-    "147": "CUserMessageCustomGameEvent_ClientToServer",
-    "148": "CUserMessageCustomGameEvent_ServerToClient",
-    "149": "CUserMessageTrackedControllerInput_ClientToServer",
+    "148": "CUserMessageCustomGameEvent",
     "200": "CMsgVDebugGameSessionIDEvent",
     "201": "CMsgPlaceDecalEvent",
     "202": "CMsgClearWorldDecalsEvent",
@@ -52467,7 +52978,8 @@ module.exports={
     "549": "CDOTAUserMsg_CustomHudElement_Modify",
     "550": "CDOTAUserMsg_CustomHudElement_Destroy",
     "551": "CDOTAUserMsg_CompendiumState",
-    "552": "CDOTAUserMsg_ProjectionAbility"
+    "552": "CDOTAUserMsg_ProjectionAbility",
+    "553": "CDOTAUserMsg_ProjectionEvent"
   },
   "dems": {
     "0": "CDemoStop",
@@ -52925,7 +53437,8 @@ module.exports={
     "345": "DOTA_CM_AbilityStartUse",
     "346": "DOTA_CM_ChallengeSelect",
     "347": "DOTA_CM_ChallengeReroll",
-    "348": "DOTA_CM_ClickedBuff"
+    "348": "DOTA_CM_ClickedBuff",
+    "349": "DOTA_CM_CoinWager"
   },
   "ESourceEngine": {
     "0": "k_ESE_Source1",
@@ -53377,8 +53890,6 @@ module.exports={
     "7505": "k_EMsgGCPracticeLobbyToggleBroadcastChannelCameramanStatus",
     "7506": "k_EMsgGCToGCCreateWeekendTourneyRequest",
     "7507": "k_EMsgGCToGCCreateWeekendTourneyResponse",
-    "7508": "k_EMsgGCHeroPickStatsRequest",
-    "7509": "k_EMsgGCHeroPickStatsResponse",
     "7510": "k_EMsgGCToGCCreateGenericTeamsRequest",
     "7511": "k_EMsgGCToGCCreateGenericTeamsResponse",
     "7512": "k_EMsgSQLLaunchOneWeekendTourney",
@@ -53466,7 +53977,16 @@ module.exports={
     "7596": "k_EMsgServerToGCHoldEventPoints",
     "7597": "k_EMsgSignOutReleaseEventPointHolds",
     "7598": "k_EMsgGCToGCChatNewUserSession",
+    "7599": "k_EMsgClientToGCGetLeagueSeries",
+    "7600": "k_EMsgClientToGCGetLeagueSeriesResponse",
+    "7601": "k_EMsgSQLGCToGCSignoutUpdateLeagueSchedule",
     "7602": "k_EMsgGCToServerUpdateBroadcastCheers",
+    "7603": "k_EMsgClientToGCApplyGemCombiner",
+    "7604": "k_EMsgClientToGCCreateStaticRecipe",
+    "7605": "k_EMsgClientToGCCreateStaticRecipeResponse",
+    "7606": "k_EMsgClientToGCGetAllHeroOrder",
+    "7607": "k_EMsgClientToGCGetAllHeroOrderResponse",
+    "7608": "k_EMsgSQLGCToGCGrantBadgePoints",
     "8001": "k_EMsgGCDev_GrantWarKill",
     "8002": "k_EMsgClientToGCCreateTeamShowcase",
     "8003": "k_EMsgGCToClientTeamShowcaseCreateResult",
@@ -53505,7 +54025,6 @@ module.exports={
     "8036": "k_EMsgClientToGCTopLeagueMatchesRequest",
     "8037": "k_EMsgClientToGCTopFriendMatchesRequest",
     "8038": "k_EMsgGCToClientTopMatchesResponse",
-    "8039": "k_EMsgClientToGCTopPubMatchesRequest",
     "8040": "k_EMsgGCToClientProfileCardStatsUpdated",
     "8041": "k_EMsgServerToGCRealtimeStats",
     "8042": "k_EMsgGCToServerRealtimeStatsStartStop",
@@ -53520,7 +54039,10 @@ module.exports={
     "8053": "k_EMsgCustomGameClientFinishedLoading",
     "8054": "k_EMsgGCPracticeLobbyCloseBroadcastChannel",
     "8055": "k_EMsgGCStartFindingMatchResponse",
-    "8056": "k_EMsgSQLGCToGCUpdateHeroMMR"
+    "8056": "k_EMsgSQLGCToGCUpdateHeroMMR",
+    "8057": "k_EMsgSQLGCToGCGrantAccountFlag",
+    "8058": "k_EMsgGCToGCGetAccountFlags",
+    "8059": "k_EMsgGCToGCGetAccountFlagsResponse"
   },
   "DOTA_GameMode": {
     "0": "DOTA_GAMEMODE_NONE",
@@ -53689,7 +54211,8 @@ module.exports={
     "0": "k_EIngameEvent_OraclePA",
     "1": "k_EIngameEvent_CNY2015",
     "2": "k_EIngameEvent_CNY2015_PreBeast",
-    "3": "k_EIngameEvent_TI5"
+    "3": "k_EIngameEvent_TI5",
+    "4": "k_EIngameEvent_FM2015"
   },
   "LobbyDotaTVDelay": {
     "0": "LobbyDotaTV_10",
@@ -53828,27 +54351,6 @@ module.exports={
     "5": "k_ETournamentNodeState_B_Won",
     "6": "k_ETournamentNodeState_Canceled"
   },
-  "DOTAChatChannelType_t": {
-    "0": "DOTAChannelType_Regional",
-    "1": "DOTAChannelType_Custom",
-    "2": "DOTAChannelType_Party",
-    "3": "DOTAChannelType_Lobby",
-    "4": "DOTAChannelType_Team",
-    "5": "DOTAChannelType_Guild",
-    "6": "DOTAChannelType_Fantasy",
-    "7": "DOTAChannelType_Whisper",
-    "8": "DOTAChannelType_Console",
-    "9": "DOTAChannelType_Tab",
-    "10": "DOTAChannelType_Invalid",
-    "11": "DOTAChannelType_GameAll",
-    "12": "DOTAChannelType_GameAllies",
-    "13": "DOTAChannelType_GameSpectator",
-    "14": "DOTAChannelType_GameCoaching"
-  },
-  "DOTA_WatchReplayType": {
-    "0": "DOTA_WATCH_REPLAY_NORMAL",
-    "1": "DOTA_WATCH_REPLAY_HIGHLIGHTS"
-  },
   "DOTA_2013PassportSelectionIndices": {
     "0": "PP13_SEL_ALLSTAR_PLAYER_0",
     "1": "PP13_SEL_ALLSTAR_PLAYER_1",
@@ -53946,6 +54448,29 @@ module.exports={
     "93": "PP13_SEL_SOLO_5",
     "94": "PP13_SEL_SOLO_6",
     "95": "PP13_SEL_SOLO_7"
+  },
+  "DOTAChatChannelType_t": {
+    "0": "DOTAChannelType_Regional",
+    "1": "DOTAChannelType_Custom",
+    "2": "DOTAChannelType_Party",
+    "3": "DOTAChannelType_Lobby",
+    "4": "DOTAChannelType_Team",
+    "5": "DOTAChannelType_Guild",
+    "6": "DOTAChannelType_Fantasy",
+    "7": "DOTAChannelType_Whisper",
+    "8": "DOTAChannelType_Console",
+    "9": "DOTAChannelType_Tab",
+    "10": "DOTAChannelType_Invalid",
+    "11": "DOTAChannelType_GameAll",
+    "12": "DOTAChannelType_GameAllies",
+    "13": "DOTAChannelType_GameSpectator",
+    "14": "DOTAChannelType_GameCoaching",
+    "15": "DOTAChannelType_Cafe",
+    "16": "DOTAChannelType_CustomGame"
+  },
+  "DOTA_WatchReplayType": {
+    "0": "DOTA_WATCH_REPLAY_NORMAL",
+    "1": "DOTA_WATCH_REPLAY_HIGHLIGHTS"
   },
   "EItemEditorReservationResult": {
     "1": "k_EItemEditorReservationResult_OK",
@@ -54067,8 +54592,6 @@ module.exports={
     "1077": "k_EMsgGCSetItemPositions",
     "1078": "k_EMsgGCApplyEggEssence",
     "1079": "k_EMsgGCNameEggEssenceResponse",
-    "1080": "k_EMsgGCUnlockItemStyle",
-    "1081": "k_EMsgGCUnlockItemStyleResponse",
     "1082": "k_EMsgGCFulfillDynamicRecipeComponent",
     "1083": "k_EMsgGCFulfillDynamicRecipeComponentResponse",
     "1084": "k_EMsgGCClientRequestMarketData",
@@ -54164,7 +54687,12 @@ module.exports={
     "2567": "k_EMsgGCToClientBundleUnpacked",
     "2568": "k_EMsgGCToClientStoreTransactionCompleted",
     "2569": "k_EMsgClientToGCEquipItems",
-    "2570": "k_EMsgClientToGCEquipItemsResponse"
+    "2570": "k_EMsgClientToGCEquipItemsResponse",
+    "2571": "k_EMsgClientToGCUnlockItemStyle",
+    "2572": "k_EMsgClientToGCUnlockItemStyleResponse",
+    "2573": "k_EMsgClientToGCSetItemInventoryCategory",
+    "2574": "k_EMsgClientToGCUnlockCrate",
+    "2575": "k_EMsgClientToGCUnlockCrateResponse"
   },
   "EGCMsgResponse": {
     "0": "k_EGCMsgResponseOK",
@@ -54176,17 +54704,6 @@ module.exports={
     "6": "k_EGCMsgResponseUnknownError",
     "7": "k_EGCMsgResponseNotLoggedOn",
     "8": "k_EGCMsgFailedToCreate"
-  },
-  "EUnlockStyle": {
-    "0": "k_UnlockStyle_Succeeded",
-    "1": "k_UnlockStyle_Failed_PreReq",
-    "2": "k_UnlockStyle_Failed_CantAfford",
-    "3": "k_UnlockStyle_Failed_CantCommit",
-    "4": "k_UnlockStyle_Failed_CantLockCache",
-    "5": "k_UnlockStyle_Failed_CantAffordAttrib",
-    "6": "k_UnlockStyle_Failed_CantAffordGem",
-    "7": "k_UnlockStyle_Failed_NoCompendiumLevel",
-    "8": "k_UnlockStyle_Failed_AlreadyUnlocked"
   },
   "EItemPurgatoryResponse_Finalize": {
     "0": "k_ItemPurgatoryResponse_Finalize_Succeeded",
@@ -54371,7 +54888,8 @@ module.exports={
     "549": "DOTA_UM_CustomHudElement_Modify",
     "550": "DOTA_UM_CustomHudElement_Destroy",
     "551": "DOTA_UM_CompendiumState",
-    "552": "DOTA_UM_ProjectionAbility"
+    "552": "DOTA_UM_ProjectionAbility",
+    "553": "DOTA_UM_ProjectionEvent"
   },
   "DOTA_CHAT_MESSAGE": {
     "0": "CHAT_MESSAGE_HERO_KILL",
@@ -54593,6 +55111,9 @@ module.exports={
     "71": "kPVLS_AllowCoachHearTeam",
     "72": "kPVLS_AllowSameTeam",
     "73": "kPVLS_AllowShowcase"
+  },
+  "EProjectionEvent": {
+    "0": "ePE_FirstBlood"
   },
   "EBaseGameEvents": {
     "200": "GE_VDebugGameSessionIDEvent",
@@ -54821,9 +55342,7 @@ module.exports={
     "144": "UM_AudioParameter",
     "145": "UM_ParticleManager",
     "146": "UM_HudError",
-    "147": "UM_CustomGameEvent_ClientToServer",
-    "148": "UM_CustomGameEvent_ServerToClient",
-    "149": "UM_TrackedControllerInput_ClientToServer",
+    "148": "UM_CustomGameEvent",
     "200": "UM_MAX_BASE"
   },
   "EBaseEntityMessages": {
@@ -54859,175 +55378,6 @@ module.exports={
   }
 }
 },{}],5:[function(require,module,exports){
-(function (Buffer){
-var BitStream = require('./BitStream');
-module.exports = function(p) {
-    var dota = p.dota;
-    //contains some useful data for entity parsing
-    p.on("CSVCMsg_ServerInfo", function(msg) {
-        p.classIdSize = Math.log(msg.max_classes);
-    });
-    //stores mapping of entity class id to a string name
-    p.on("CDemoClassInfo", function(msg) {
-        msg.classes.forEach(function(c) {
-            p.classInfo[c.class_id] = c.network_name;
-        });
-        // update the instancebaseline
-        p.updateInstanceBaseline();
-    });
-    p.on("CDemoSendTables", function(msg) {
-        //extract data
-        var buf = new Buffer(msg.data.toBuffer());
-        var bs = new BitStream(buf);
-        //first bytes are a varuint
-        var size = bs.readVarUInt();
-        //next bytes are a CSVCMsg_FlattenedSerializer, decode with protobuf
-        var data = bs.readBuffer(size * 8);
-        data = dota.CSVCMsg_FlattenedSerializer.decode(data);
-        var fs = {
-            serializers: {},
-            //proto: data,
-            propertySerializers: {}
-        };
-        data.serializers.forEach(function(s) {
-            var name = data.symbols[s.serializer_name_sym];
-            var version = s.serializer_version;
-            if (!(name in fs.serializers)) {
-                fs.serializers[name] = {};
-            }
-            fs.serializers[name][version] = parseSerializer(s);
-        });
-        p.serializers = fs;
-    });
-    //TODO entities. huffman trees, property decoding?!
-    p.on("CSVCMsg_PacketEntities", function(msg) {
-        //packet entities are contained in a buffer in this packet
-        //we also need to readproperties
-        //where do baselines fit in?  instancebaseline stringtable?
-        var buf = new Buffer(msg.entity_data.toBuffer());
-        var bs = new BitStream(buf);
-        var index = -1;
-        return;
-        //read as many entries as the message says to
-        for (var i = 0; i < msg.updated_entries; i++) {
-            // Read the index delta from the buffer.
-            var delta = bs.readUBitVar();
-            index += delta + 1;
-            // Read the type of update based on two booleans.
-            // This appears to be backwards from source 1:
-            // true+true used to be "create", now appears to be false+true?
-            var updateType = "";
-            if (bs.readBoolean()) {
-                if (bs.readBoolean()) {
-                    //delete
-                    updateType = "D";
-                }
-                else {
-                    //XXX mystery type?
-                    updateType = "?";
-                }
-            }
-            else {
-                if (bs.readBoolean()) {
-                    //create
-                    updateType = "C";
-                }
-                else {
-                    //update
-                    updateType = "U";
-                }
-            }
-            // Proceed based on the update type
-            switch (updateType) {
-                case "C":
-                    // Create a new packetEntity.
-                    var classId = bs.readBits(p.server_info.classIdSize);
-                    // Get the associated class for this entity id.  This is a name (string).
-                    var className = p.classInfo[classId];
-                    // Get the associated serializer.  These are keyed by entity name.
-                    //TODO we need to create serializers
-                    var flatTbl = p.serializers[className][0];
-                    var pe = {
-                        index: index,
-                        classId: classId,
-                        className: className,
-                        flatTbl: flatTbl,
-                        properties: {},
-                    };
-                    // Skip the 10 serial bits for now.
-                    bs.readBits(10);
-                    // Read properties and set them in the packetEntity
-                    pe.properties = readEntityProperties(bs, pe.flatTbl);
-                    p.entities[index] = pe;
-                    break;
-                case "U":
-                    // Find the existing packetEntity
-                    var pe = p.entities[index];
-                    // Read properties and update the packetEntity
-                    var properties = readEntityProperties(bs, pe.flatTbl);
-                    for (var key in properties) {
-                        pe.properties[key] = properties[key];
-                    }
-                    break;
-                case "D":
-                    delete p.entities[index];
-                    break;
-            }
-        }
-        return;
-    });
-    /**
-     * Given a flattened serializer, reads its properties and return an object.
-     **/
-    function parseSerializer(s) {
-        //TODO implement
-    }
-    /**
-     * Given a bitstream and a property table, return a mapping of properties
-     **/
-    function readEntityProperties(bs, table) {
-        //TODO implement this
-        /*
-	// Return type
-	result = make(map[string]interface{})
-
-	// Copy baseline if any
-	if baseline != nil {
-		for k, v := range baseline {
-			result[k] = v
-		}
-	}
-
-	// Create fieldpath
-	fieldPath := newFieldpath(ser, &huf)
-
-	// Get a list of the included fields
-	fieldPath.walk(r)
-
-	// iterate all the fields and set their corresponding values
-	for _, f := range fieldPath.fields {
-		if f.Field.Serializer.Decode == nil {
-			result[f.Name] = r.readVarUint32()
-			_debugfl(6, "Decoded default: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
-			continue
-		}
-
-		if f.Field.Serializer.DecodeContainer != nil {
-			result[f.Name] = f.Field.Serializer.DecodeContainer(r, f.Field)
-		} else {
-			result[f.Name] = f.Field.Serializer.Decode(r, f.Field)
-		}
-
-		_debugfl(6, "Decoded: %d %s %s %v", r.pos, f.Name, f.Field.Type, result[f.Name])
-	}
-
-	return result
-    	*/
-        return;
-    }
-}
-}).call(this,require("buffer").Buffer)
-},{"./BitStream":1,"buffer":29}],6:[function(require,module,exports){
 (function (process,global){
 /*!
  * async
@@ -56253,11 +56603,11 @@ module.exports = function(p) {
 }());
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"_process":13}],7:[function(require,module,exports){
+},{"_process":12}],6:[function(require,module,exports){
 
-},{}],8:[function(require,module,exports){
-arguments[4][7][0].apply(exports,arguments)
-},{"dup":7}],9:[function(require,module,exports){
+},{}],7:[function(require,module,exports){
+arguments[4][6][0].apply(exports,arguments)
+},{"dup":6}],8:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -56560,7 +56910,7 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],10:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -56585,12 +56935,12 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],11:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 module.exports = Array.isArray || function (arr) {
   return Object.prototype.toString.call(arr) == '[object Array]';
 };
 
-},{}],12:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -56818,7 +57168,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":13}],13:[function(require,module,exports){
+},{"_process":12}],12:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -56910,10 +57260,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],14:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 module.exports = require("./lib/_stream_duplex.js")
 
-},{"./lib/_stream_duplex.js":15}],15:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":14}],14:[function(require,module,exports){
 // a duplex stream is just a stream that is both readable and writable.
 // Since JS doesn't have multiple prototypal inheritance, this class
 // prototypally inherits from Readable, and then parasitically from
@@ -56997,7 +57347,7 @@ function forEach (xs, f) {
   }
 }
 
-},{"./_stream_readable":17,"./_stream_writable":19,"core-util-is":20,"inherits":10,"process-nextick-args":21}],16:[function(require,module,exports){
+},{"./_stream_readable":16,"./_stream_writable":18,"core-util-is":19,"inherits":9,"process-nextick-args":20}],15:[function(require,module,exports){
 // a passthrough stream.
 // basically just the most minimal sort of Transform stream.
 // Every written chunk gets output as-is.
@@ -57026,7 +57376,7 @@ PassThrough.prototype._transform = function(chunk, encoding, cb) {
   cb(null, chunk);
 };
 
-},{"./_stream_transform":18,"core-util-is":20,"inherits":10}],17:[function(require,module,exports){
+},{"./_stream_transform":17,"core-util-is":19,"inherits":9}],16:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -57989,7 +58339,7 @@ function indexOf (xs, x) {
 }
 
 }).call(this,require('_process'))
-},{"./_stream_duplex":15,"_process":13,"buffer":29,"core-util-is":20,"events":9,"inherits":10,"isarray":11,"process-nextick-args":21,"string_decoder/":28,"util":8}],18:[function(require,module,exports){
+},{"./_stream_duplex":14,"_process":12,"buffer":28,"core-util-is":19,"events":8,"inherits":9,"isarray":10,"process-nextick-args":20,"string_decoder/":27,"util":7}],17:[function(require,module,exports){
 // a transform stream is a readable/writable stream where you do
 // something with the data.  Sometimes it's called a "filter",
 // but that's not a great name for it, since that implies a thing where
@@ -58188,7 +58538,7 @@ function done(stream, er) {
   return stream.push(null);
 }
 
-},{"./_stream_duplex":15,"core-util-is":20,"inherits":10}],19:[function(require,module,exports){
+},{"./_stream_duplex":14,"core-util-is":19,"inherits":9}],18:[function(require,module,exports){
 // A bit simpler than readable streams.
 // Implement an async ._write(chunk, cb), and it'll handle all
 // the drain event emission and buffering.
@@ -58710,7 +59060,7 @@ function endWritable(stream, state, cb) {
   state.ended = true;
 }
 
-},{"./_stream_duplex":15,"buffer":29,"core-util-is":20,"events":9,"inherits":10,"process-nextick-args":21,"util-deprecate":22}],20:[function(require,module,exports){
+},{"./_stream_duplex":14,"buffer":28,"core-util-is":19,"events":8,"inherits":9,"process-nextick-args":20,"util-deprecate":21}],19:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -58820,7 +59170,7 @@ function objectToString(o) {
   return Object.prototype.toString.call(o);
 }
 }).call(this,require("buffer").Buffer)
-},{"buffer":29}],21:[function(require,module,exports){
+},{"buffer":28}],20:[function(require,module,exports){
 (function (process){
 'use strict';
 module.exports = nextTick;
@@ -58837,7 +59187,7 @@ function nextTick(fn) {
 }
 
 }).call(this,require('_process'))
-},{"_process":13}],22:[function(require,module,exports){
+},{"_process":12}],21:[function(require,module,exports){
 (function (global){
 
 /**
@@ -58903,10 +59253,10 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],23:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 module.exports = require("./lib/_stream_passthrough.js")
 
-},{"./lib/_stream_passthrough.js":16}],24:[function(require,module,exports){
+},{"./lib/_stream_passthrough.js":15}],23:[function(require,module,exports){
 var Stream = (function (){
   try {
     return require('st' + 'ream'); // hack to fix a circular dependency issue when used with browserify
@@ -58920,13 +59270,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":15,"./lib/_stream_passthrough.js":16,"./lib/_stream_readable.js":17,"./lib/_stream_transform.js":18,"./lib/_stream_writable.js":19}],25:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":14,"./lib/_stream_passthrough.js":15,"./lib/_stream_readable.js":16,"./lib/_stream_transform.js":17,"./lib/_stream_writable.js":18}],24:[function(require,module,exports){
 module.exports = require("./lib/_stream_transform.js")
 
-},{"./lib/_stream_transform.js":18}],26:[function(require,module,exports){
+},{"./lib/_stream_transform.js":17}],25:[function(require,module,exports){
 module.exports = require("./lib/_stream_writable.js")
 
-},{"./lib/_stream_writable.js":19}],27:[function(require,module,exports){
+},{"./lib/_stream_writable.js":18}],26:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -59055,7 +59405,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":9,"inherits":10,"readable-stream/duplex.js":14,"readable-stream/passthrough.js":23,"readable-stream/readable.js":24,"readable-stream/transform.js":25,"readable-stream/writable.js":26}],28:[function(require,module,exports){
+},{"events":8,"inherits":9,"readable-stream/duplex.js":13,"readable-stream/passthrough.js":22,"readable-stream/readable.js":23,"readable-stream/transform.js":24,"readable-stream/writable.js":25}],27:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -59278,7 +59628,7 @@ function base64DetectIncompleteChar(buffer) {
   this.charLength = this.charReceived ? 3 : 0;
 }
 
-},{"buffer":29}],29:[function(require,module,exports){
+},{"buffer":28}],28:[function(require,module,exports){
 /*!
  * The buffer module from node.js, for the browser.
  *
@@ -60813,7 +61163,7 @@ function blitBuffer (src, dst, offset, length) {
   return i
 }
 
-},{"base64-js":30,"ieee754":31,"is-array":32}],30:[function(require,module,exports){
+},{"base64-js":29,"ieee754":30,"is-array":31}],29:[function(require,module,exports){
 var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 ;(function (exports) {
@@ -60939,7 +61289,7 @@ var lookup = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	exports.fromByteArray = uint8ToBase64
 }(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-},{}],31:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = nBytes * 8 - mLen - 1
@@ -61025,7 +61375,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],32:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 
 /**
  * isArray
@@ -61060,7 +61410,7 @@ module.exports = isArray || function (val) {
   return !! val && '[object Array]' == str.call(val);
 };
 
-},{}],33:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 /*
  Copyright 2013-2014 Daniel Wirtz <dcode@dcode.io>
 
@@ -61085,8 +61435,9 @@ module.exports = isArray || function (val) {
  */
 (function(global, factory) {
 
-
-    /* CommonJS */ if (typeof require === 'function' && typeof module === "object" && module && module["exports"])
+    /* AMD */ if (typeof define === 'function' && define["amd"])
+        define(["Long"], factory);
+    /* CommonJS */ else if (typeof require === 'function' && typeof module === "object" && module && module["exports"])
         module['exports'] = (function() {
             var Long; try { Long = require("long"); } catch (e) {}
             return factory(Long);
@@ -64774,7 +65125,7 @@ module.exports = isArray || function (val) {
     return ByteBuffer;
 });
 
-},{"long":34}],34:[function(require,module,exports){
+},{"long":33}],33:[function(require,module,exports){
 /*
  Copyright 2013 Daniel Wirtz <dcode@dcode.io>
  Copyright 2009 The Closure Library Authors. All Rights Reserved.
@@ -65720,7 +66071,7 @@ module.exports = isArray || function (val) {
 
 })(this);
 
-},{}],35:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 (function (process){
 /*
  Copyright 2013 Daniel Wirtz <dcode@dcode.io>
@@ -71034,9 +71385,10 @@ module.exports = isArray || function (val) {
 });
 
 }).call(this,require('_process'))
-},{"_process":13,"bytebuffer":33,"fs":7,"path":12}],36:[function(require,module,exports){
-(function (Buffer){
+},{"_process":12,"bytebuffer":32,"fs":6,"path":11}],35:[function(require,module,exports){
 var BitStream = require('./BitStream');
+var util = require('./util');
+var extractBuffer = util.extractBuffer;
 module.exports = function(p) {
     var dota = p.dota;
     var packetTypes = p.types.packets;
@@ -71078,15 +71430,15 @@ module.exports = function(p) {
         //the inner data of a CDemoPacket is raw bits (no longer byte aligned!)
         var packets = [];
         //extract the native buffer from the ByteBuffer decoded by protobufjs
-        //rewrap it in a new Buffer to force usage of node Buffer wrapper rather than ArrayBuffer when in browser
-        var buf = new Buffer(msg.data.toBuffer());
+        var buf = extractBuffer(msg.data);
         //convert the buffer object into a bitstream so we can read bits from it
-        var bs = new BitStream(buf);
+        var bs = BitStream(buf);
         //read until less than 8 bits left
         while (bs.limit - bs.offset >= 8) {
             var t = bs.readUBitVar();
             var s = bs.readVarUInt();
             var d = bs.readBuffer(s * 8);
+            var name = packetTypes[t];
             var pack = {
                 type: t,
                 size: s,
@@ -71128,21 +71480,27 @@ module.exports = function(p) {
         }
     }
 }
-}).call(this,require("buffer").Buffer)
-},{"./BitStream":1,"buffer":29}],37:[function(require,module,exports){
-(function (Buffer){
+},{"./BitStream":1,"./util":38}],36:[function(require,module,exports){
 /**
  * A pure JS implementation of Snappy decompression, for use in the browser
  **/
+var ByteBuffer = require('bytebuffer');
 module.exports = {
     uncompressSync: function(buf) {
-        var input = buf;
-        var inputOffset = 0;
-        var size = readVarUInt();
-        var output = new Buffer(size);
-        var outputOffset = 0;
-        while (input.length > inputOffset) {
-            var tag = readUInt8();
+        var input = ByteBuffer.wrap(buf);
+        var size = input.readVarint32();
+        var output = new ByteBuffer(size);
+        output.offset = 0;
+        output.length = size;
+        input.littleEndian = true;
+        var copy = function(output, length, offset) {
+            var ptr = output.offset - offset;
+            for (var i = 0; i < length; ++i) {
+                output.writeByte(output.readByte(ptr + i));
+            }
+        };
+        while (input.remaining()) {
+            var tag = input.readUint8();
             switch (tag & 3) {
                 case 0:
                     var length = (tag >> 2) + 1;
@@ -71150,91 +71508,48 @@ module.exports = {
                         var bytes = length - 60;
                         length = 0;
                         for (var i = 0; i < bytes; ++i) {
-                            var byte = readUInt8();
-                            length |= byte << (8 * i);
+                            length |= input.readUint8() << (8 * i);
                         }
                         length++;
                     }
                     for (var i = 0; i < length; ++i) {
-                        writeUInt8(readUInt8());
+                        output.writeByte(input.readByte());
                     }
                     break;
                 case 1:
                     var length = ((tag >> 2) & 7) + 4;
-                    var byte = readUInt8();
-                    var offset = ((tag >> 5) << 8) | byte;
+                    var offset = ((tag >> 5) << 8) | input.readUint8();
                     copy(output, length, offset);
                     break;
                 case 2:
                     var length = (tag >> 2) + 1;
-                    var offset = readUInt16LE();
+                    var offset = input.readUint16();
                     copy(output, length, offset);
                     break;
                 case 3:
                     var length = (tag >> 2) + 1;
-                    var offset = readUInt32LE();
+                    var offset = input.readUint32();
                     copy(output, length, offset);
                     break;
             };
         }
+        output.offset = 0;
         return output;
-
-        function copy(output, length, offset) {
-            var ptr = outputOffset - offset;
-            for (var i = 0; i < length; ++i) {
-                writeUInt8(output.readUInt8(ptr + i));
-            }
-        }
-
-        function readUInt8() {
-            inputOffset += 1;
-            return input.readUInt8(inputOffset - 1);
-        }
-
-        function readUInt16LE() {
-            inputOffset += 2;
-            return input.readUInt16LE(inputOffset - 2);
-        }
-
-        function readUInt32LE() {
-            inputOffset += 4;
-            return input.readUInt32LE(inputOffset - 4);
-        }
-
-        function writeUInt8(byte) {
-            output.writeUInt8(byte, outputOffset);
-            outputOffset += 1;
-        }
-
-        function readVarUInt() {
-            var max = 32;
-            var m = ((max + 6) / 7) * 7;
-            var value = 0;
-            var shift = 0;
-            while (true) {
-                var byte = readUInt8();
-                value |= (byte & 0x7F) << shift;
-                shift += 7;
-                if ((byte & 0x80) === 0 || shift == m) {
-                    return value;
-                }
-            }
-        }
     }
 };
-}).call(this,require("buffer").Buffer)
-},{"buffer":29}],38:[function(require,module,exports){
+},{"bytebuffer":32}],37:[function(require,module,exports){
 (function (Buffer){
 var BitStream = require('./BitStream');
 var snappy = require('./snappy');
-module.exports = function(p){
-     //string tables may mutate over the lifetime of the replay.
+var util = require('./util');
+var extractBuffer = util.extractBuffer;
+module.exports = function(p) {
+    //string tables may mutate over the lifetime of the replay.
     //Therefore we listen for create/update events and modify the table as needed.
     //p.on("CDemoStringTables", readCDemoStringTables);
     p.on("CSVCMsg_CreateStringTable", readCreateStringTable);
     p.on("CSVCMsg_UpdateStringTable", readUpdateStringTable);
-    
-    
+
     function readCDemoStringTables(data) {
         //rather than processing when we read this demo message, we want to create when we read the packet CSVCMsg_CreateStringTable
         //this packet is just emitted as a state dump at intervals
@@ -71244,8 +71559,7 @@ module.exports = function(p){
     function readCreateStringTable(msg) {
         //create a stringtable
         //console.error(data);
-        //extract the native buffer from the string_data ByteBuffer, with the offset removed
-        var buf = new Buffer(msg.string_data.toBuffer());
+        var buf = extractBuffer(msg.string_data);
         if (msg.data_compressed) {
             //decompress the string data with snappy
             //early source 2 replays may use LZSS, we can detect this by reading the first four bytes of buffer
@@ -71273,7 +71587,7 @@ module.exports = function(p){
         //retrieve table by id
         var table = p.stringTables.tables[msg.table_id];
         //extract native buffer
-        var buf = new Buffer(msg.string_data.toBuffer());
+        var buf = extractBuffer(msg.string_data);
         if (table) {
             var items = parseStringTableData(buf, msg.num_changed_entries, table.user_data_fixed_size, table.user_data_size);
             var string_data = table.string_data;
@@ -71313,11 +71627,11 @@ module.exports = function(p){
      **/
     function parseStringTableData(buf, num_entries, userDataFixedSize, userDataSize) {
         // Some tables have no data
-        if (!buf.length) {
+        if (!buf.limit) {
             return [];
         }
         var items = [];
-        var bs = new BitStream(buf);
+        var bs = BitStream(buf);
         // Start with an index of -1.
         // If the first item is at index 0 it will use a incr operation.
         var index = -1;
@@ -71409,4 +71723,12 @@ module.exports = function(p){
     }
 }
 }).call(this,require("buffer").Buffer)
-},{"./BitStream":1,"./snappy":37,"buffer":29}]},{},[2]);
+},{"./BitStream":1,"./snappy":36,"./util":38,"buffer":28}],38:[function(require,module,exports){
+module.exports = {
+    extractBuffer: function(bb) {
+        return bb;
+        //rewrap it in a new Buffer to force usage of node Buffer wrapper rather than ArrayBuffer when in browser
+        //return new Buffer(bb.toBuffer());
+    }
+}
+},{}]},{},[2]);

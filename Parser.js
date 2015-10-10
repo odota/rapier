@@ -32,17 +32,17 @@ var Parser = function(input, options) {
     var p = new EventEmitter();
     //the following properties are exposed to the user to help interpret messages
     p.types = types;
+    p.dota = dota;
+    p.classIdSize = 0;
     p.gameEventDescriptors = {};
+    p.classInfo = {};
+    p.serializers = {};
+    p.entities = {};
+    p.baselines = {};
     p.stringTables = {
         tables: [],
         tablesByName: {}
     };
-    p.classInfo = {};
-    p.serializers = {};
-    p.entities = {};
-    p.classIdSize = 0;
-    p.dota = dota;
-    p.baseline = {};
     /**
      * Begins parsing the replay.
      **/
@@ -78,54 +78,62 @@ var Parser = function(input, options) {
     };
     /**
      * Given the current state of string tables and class info, updates the baseline state.
-     * This is state that is maintained throughout the parse and is used in parsing entities.
+     * This is state that is maintained throughout the parse and is used as fallback when fetching entity properties.
      **/
-    p.updateInstanceBaseline = function updateInstanceBaseline(p) {
-        //TODO implement
-        /*
+    p.updateInstanceBaseline = function updateInstanceBaseline() {
+        //TODO
         // We can't update the instancebaseline until we have class info.
-	if !p.hasClassInfo {
-		return
-	}
+        if (!Object.keys(p.classInfo)) {
+            return;
+        }
+        /*
+        	stringTable, ok := p.StringTables.GetTableByName("instancebaseline")
+        	if !ok {
+        		_debugf("skipping updateInstanceBaseline: no instancebaseline string table")
+        		return
+        	}
 
-	stringTable, ok := p.stringTables.getTableByName("instancebaseline")
-	if !ok {
-		_debugf("skipping updateInstanceBaseline: no instancebaseline string table")
-		return
-	}
-
-	// Iterate through instancebaseline table items
-	for _, item := range stringTable.items {
-		// Get the class id for the string table item
-		classId, err := atoi32(item.key)
-		if err != nil {
-			_panicf("invalid instancebaseline key '%s': %s", item.key, err)
-		}
-
-		// Get the class name
-		className, ok := p.classInfo[classId]
-		if !ok {
-			_panicf("unable to find class info for instancebaseline key %d", classId)
-		}
-
-		// Create an entry in the map if needed
-		if _, ok := p.classBaseline[classId]; !ok {
-			p.classBaseline[classId] = make(map[string]interface{})
-		}
-
-		// Get the send table associated with the class.
-		sendTable, ok := p.sendTables.getTableByName(className)
-		if !ok {
-			_panicf("unable to find send table %s for instancebaseline key %d", className, classId)
-		}
-
-		// Parse the properties out of the string table buffer and store
-		// them as the class baseline in the Parser.
-		if len(item.value) > 0 {
-			p.classBaseline[classId] = readProperties(newReader(item.value), sendTable)
-		}
-	}
-	*/
+        	// Iterate through instancebaseline table items
+        	for _, item := range stringTable.Items {
+        		        
+            	// Get the class id for the string table item
+            	classId, err := atoi32(item.Key)
+            	if err != nil {
+            		_panicf("invalid instancebaseline key '%s': %s", item.Key, err)
+            	}
+            
+            	// Get the class name
+            	className, ok := p.ClassInfo[classId]
+            	if !ok {
+            		_panicf("unable to find class info for instancebaseline key %d", classId)
+            	}
+            
+            	// Create an entry in the map if needed
+            	if _, ok := p.ClassBaselines[classId]; !ok {
+            		p.ClassBaselines[classId] = NewProperties()
+            	}
+            
+            	// Get the send table associated with the class.
+            	serializer, ok := p.serializers[className]
+            	if !ok {
+            		_panicf("unable to find send table %s for instancebaseline key %d", className, classId)
+            	}
+            
+            	// Uncomment to dump fixtures
+            	//_dump_fixture("instancebaseline/1731962898_"+className+".rawbuf", item.Value)
+            
+            	// Parse the properties out of the string table buffer and store
+            	// them as the class baseline in the Parser.
+            	if len(item.Value) > 0 {
+            		_debugfl(1, "Parsing entity baseline %v", serializer[0].Name)
+            		r := NewReader(item.Value)
+            		p.ClassBaselines[classId] = ReadProperties(r, serializer[0])
+            		// Inline test the baselines
+            		if testLevel >= 1 && r.remBits() > 8 {
+            			_panicf("Too many bits remaining in baseline %v, %v", serializer[0].Name, r.remBits())
+            		}
+            }
+            */
     };
     /**
      * Internal listeners to automatically process certain packets.
