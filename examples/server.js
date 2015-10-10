@@ -41,8 +41,7 @@ p.on("CDOTAUserMsg_ChatEvent", function(data) {
     //console.log(data);
 });
 p.on("CDOTAUserMsg_CombatLogDataHLTV", function(data) {
-    data.type = types.DOTA_COMBATLOG_TYPES[data.type] || data.type;
-    //translate the entries using stringtable
+    data.name = types.DOTA_COMBATLOG_TYPES[data.type] || data.type;
     //translate the following fields with the stringtable        
     data.damage_source_name = getStringFromCombatLogNames(data.damage_source_name);
     data.target_name = getStringFromCombatLogNames(data.target_name);
@@ -56,7 +55,7 @@ p.on("CDOTAUserMsg_CombatLogDataHLTV", function(data) {
         }
     }
     //console.error(data);
-    if (data.type === "DOTA_COMBATLOG_PLAYERSTATS"){
+    if (data.type > 18) {
         console.error(data);
     }
     console.log(JSON.stringify(data));
