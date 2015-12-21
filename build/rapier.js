@@ -223,6 +223,7 @@ var dota = builder.build();
 //CDemoSignonPacket is a special case and should be decoded with CDemoPacket since it doesn't have its own protobuf
 //it appears that things like the gameeventlist and createstringtables calls are here?
 dota["CDemoSignonPacket"] = dota["CDemoPacket"];
+dota["CDOTAUserMsg_CombatLogDataHLTV"] = dota["CMsgDOTACombatLogEntry"];
 //console.error(Object.keys(dota));
 var Parser = function(input, options) {
     //if a JS ArrayBuffer, convert to native node buffer
@@ -1961,6 +1962,48 @@ module.exports={
                     "type": "uint32",
                     "name": "account_creation_time",
                     "id": 25
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_steamguard_enabled",
+                    "id": 27
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_phone_verified",
+                    "id": 28
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_two_factor_auth_enabled",
+                    "id": 29
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "two_factor_enabled_time",
+                    "id": 30
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "phone_verification_time",
+                    "id": 31
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "phone_id",
+                    "id": 33
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_phone_identifying",
+                    "id": 34
                 }
             ]
         },
@@ -2981,6 +3024,12 @@ module.exports={
                     "options": {
                         "packed": true
                     }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "region_ping_failed_bitmask",
+                    "id": 10
                 }
             ]
         },
@@ -3050,6 +3099,12 @@ module.exports={
                     "type": "fixed64",
                     "name": "steam_id",
                     "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "user_offline",
+                    "id": 3
                 }
             ]
         },
@@ -3073,30 +3128,6 @@ module.exports={
                     "type": "uint32",
                     "name": "client_version",
                     "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_id",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "as_coach",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "game_language_enum",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "game_language_name",
-                    "id": 7
                 },
                 {
                     "rule": "optional",
@@ -3126,18 +3157,6 @@ module.exports={
                     "type": "uint32",
                     "name": "client_version",
                     "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "game_language_enum",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "game_language_name",
-                    "id": 5
                 },
                 {
                     "rule": "optional",
@@ -4129,76 +4148,6 @@ module.exports={
                     "rule": "optional",
                     "type": "uint32",
                     "name": "preset_id",
-                    "id": 3
-                }
-            ]
-        },
-        {
-            "name": "CMsgGCReportAbuse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "fixed64",
-                    "name": "target_steam_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "description",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "gid",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "abuse_type",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "content_type",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "fixed32",
-                    "name": "target_game_server_ip",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "target_game_server_port",
-                    "id": 7
-                }
-            ]
-        },
-        {
-            "name": "CMsgGCReportAbuseResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "fixed64",
-                    "name": "target_steam_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "result",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "error_message",
                     "id": 3
                 }
             ]
@@ -8587,6 +8536,37 @@ module.exports={
             ]
         },
         {
+            "name": "CDOTAClientMsg_GenericBooleanConvar",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EType",
+                    "name": "type",
+                    "id": 1,
+                    "options": {
+                        "default": "FORCE_DEFAULT_RESPAWN_STINGER"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "value",
+                    "id": 2
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EType",
+                    "values": [
+                        {
+                            "name": "FORCE_DEFAULT_RESPAWN_STINGER",
+                            "id": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "name": "CDOTAClientMsg_AutoPurchaseItems",
             "fields": [
                 {
@@ -9010,6 +8990,12 @@ module.exports={
                     "type": "uint32",
                     "name": "style_index",
                     "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "keep_existing_demohero",
+                    "id": 6
                 }
             ]
         },
@@ -9077,6 +9063,17 @@ module.exports={
                     "rule": "repeated",
                     "type": "CDOTAMsg_UnitOrder",
                     "name": "orders",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CDOTAClientMsg_XPAlert",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "target_entindex",
                     "id": 1
                 }
             ]
@@ -10388,6 +10385,18 @@ module.exports={
                     "type": "uint32",
                     "name": "play_time_level",
                     "id": 70
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "player_behavior_seq_num_last_report",
+                    "id": 71
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "player_behavior_score_last_report",
+                    "id": 72
                 }
             ]
         },
@@ -10426,6 +10435,12 @@ module.exports={
                     "options": {
                         "packed": true
                     }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "region_ping_failed_bitmask",
+                    "id": 6
                 }
             ]
         },
@@ -11818,6 +11833,51 @@ module.exports={
                     "type": "uint64",
                     "name": "previous_match_override",
                     "id": 82
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "custom_game_uses_account_records",
+                    "id": 83
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_selection_priority_team",
+                    "id": 84
+                },
+                {
+                    "rule": "optional",
+                    "type": "SelectionPriorityType",
+                    "name": "league_selection_priority_choice",
+                    "id": 85,
+                    "options": {
+                        "default": "UNDEFINED"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "SelectionPriorityType",
+                    "name": "league_non_selection_priority_choice",
+                    "id": 86,
+                    "options": {
+                        "default": "UNDEFINED"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "game_start_time",
+                    "id": 87
+                },
+                {
+                    "rule": "optional",
+                    "type": "LobbyDotaPauseSetting",
+                    "name": "pause_setting",
+                    "id": 88,
+                    "options": {
+                        "default": "LobbyDotaPauseSetting_Unlimited"
+                    }
                 }
             ],
             "messages": [
@@ -12003,20 +12063,6 @@ module.exports={
             ]
         },
         {
-            "name": "CMsgDOTAGenericResult",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "eresult",
-                    "id": 1,
-                    "options": {
-                        "default": 2
-                    }
-                }
-            ]
-        },
-        {
             "name": "CMsgDOTABroadcastNotification",
             "fields": [
                 {
@@ -12047,76 +12093,6 @@ module.exports={
                     "type": "string",
                     "name": "pcbangname",
                     "id": 3
-                }
-            ]
-        },
-        {
-            "name": "CAttribute_String",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "value",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CAttribute_ItemDynamicRecipeComponent",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "item_def",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "item_quality",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "item_flags",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "attributes_string",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "item_count",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "items_fulfilled",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "item_rarity",
-                    "id": 7
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "lootlist",
-                    "id": 8
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "fulfilled_item_id",
-                    "id": 9
                 }
             ]
         },
@@ -12217,254 +12193,6 @@ module.exports={
                     "type": "uint32",
                     "name": "style",
                     "id": 7
-                }
-            ]
-        },
-        {
-            "name": "CProtoItemSocket",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "uint64",
-                    "name": "item_id",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "attr_def_index",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "required_type",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "required_hero",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "gem_def_index",
-                    "id": 5
-                },
-                {
-                    "rule": "optional",
-                    "type": "bool",
-                    "name": "not_tradable",
-                    "id": 6
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "required_item_slot",
-                    "id": 7
-                }
-            ]
-        },
-        {
-            "name": "CProtoItemSocket_Empty",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CProtoItemSocket",
-                    "name": "socket",
-                    "id": 1
-                }
-            ]
-        },
-        {
-            "name": "CProtoItemSocket_Effect",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CProtoItemSocket",
-                    "name": "socket",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "effect",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CProtoItemSocket_Color",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CProtoItemSocket",
-                    "name": "socket",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "red",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "green",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "blue",
-                    "id": 4
-                }
-            ]
-        },
-        {
-            "name": "CProtoItemSocket_Strange",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CProtoItemSocket",
-                    "name": "socket",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "strange_type",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "strange_value",
-                    "id": 3
-                }
-            ]
-        },
-        {
-            "name": "CProtoItemSocket_Spectator",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CProtoItemSocket",
-                    "name": "socket",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "games_viewed",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "corporation_id",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "league_id",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "team_id",
-                    "id": 5
-                }
-            ]
-        },
-        {
-            "name": "CProtoItemSocket_AssetModifier",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CProtoItemSocket",
-                    "name": "socket",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "asset_modifier",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CProtoItemSocket_AssetModifier_DESERIALIZE_FROM_STRING_ONLY",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CProtoItemSocket",
-                    "name": "socket",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "asset_modifier",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "anim_modifier",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "ability_effect",
-                    "id": 4
-                }
-            ]
-        },
-        {
-            "name": "CProtoItemSocket_Autograph",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CProtoItemSocket",
-                    "name": "socket",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "string",
-                    "name": "autograph",
-                    "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "autograph_id",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "autograph_score",
-                    "id": 4
-                }
-            ]
-        },
-        {
-            "name": "CProtoItemSocket_StaticVisuals",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "CProtoItemSocket",
-                    "name": "socket",
-                    "id": 1
                 }
             ]
         },
@@ -12962,7 +12690,32 @@ module.exports={
         },
         {
             "name": "CMsgDOTARedeemItemResponse",
-            "fields": []
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "EResultCode",
+                    "name": "response",
+                    "id": 1,
+                    "options": {
+                        "default": "k_Succeeded"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResultCode",
+                    "values": [
+                        {
+                            "name": "k_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_Failed",
+                            "id": 1
+                        }
+                    ]
+                }
+            ]
         },
         {
             "name": "CMsgDOTACombatLogEntry",
@@ -13209,6 +12962,54 @@ module.exports={
                     "type": "uint32",
                     "name": "assist_players",
                     "id": 40
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_heal_save",
+                    "id": 41
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "is_ultimate_ability",
+                    "id": 42
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "attacker_hero_level",
+                    "id": 43
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "target_hero_level",
+                    "id": 44
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "xpm",
+                    "id": 45
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "gpm",
+                    "id": 46
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "event_location",
+                    "id": 47
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "target_is_self",
+                    "id": 48
                 }
             ]
         },
@@ -13529,6 +13330,18 @@ module.exports={
                     "type": "uint32",
                     "name": "flags",
                     "id": 11
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "attempts",
+                    "id": 12
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "complete_limit",
+                    "id": 13
                 }
             ],
             "enums": [
@@ -13538,6 +13351,10 @@ module.exports={
                         {
                             "name": "eFlag_InstantRerollUncompleted",
                             "id": 1
+                        },
+                        {
+                            "name": "eFlag_QuestChallenge",
+                            "id": 2
                         }
                     ]
                 }
@@ -13609,6 +13426,12 @@ module.exports={
                     "type": "uint64",
                     "name": "top_custom_games",
                     "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "game_of_the_day",
+                    "id": 2
                 }
             ]
         },
@@ -14714,6 +14537,82 @@ module.exports={
                             "id": 1
                         }
                     ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCToClientMatchGroupsVersion",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "matchgroups_version",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgDOTASDOHeroStatsHistory",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "match_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "game_mode",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "lobby_type",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "start_time",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "won",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "gpm",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "xpm",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "kills",
+                    "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "deaths",
+                    "id": 9
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "assists",
+                    "id": 10
                 }
             ]
         },
@@ -18311,24 +18210,6 @@ module.exports={
                 },
                 {
                     "rule": "optional",
-                    "type": "uint32",
-                    "name": "engine",
-                    "id": 12
-                },
-                {
-                    "rule": "repeated",
-                    "type": "uint32",
-                    "name": "hero_ids",
-                    "id": 13
-                },
-                {
-                    "rule": "repeated",
-                    "type": "fixed64",
-                    "name": "steam_ids",
-                    "id": 14
-                },
-                {
-                    "rule": "optional",
                     "type": "string",
                     "name": "team_name_radiant",
                     "id": 15
@@ -18356,6 +18237,49 @@ module.exports={
                     "type": "int32",
                     "name": "radiant_lead",
                     "id": 19
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "radiant_score",
+                    "id": 20
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "dire_score",
+                    "id": 21
+                },
+                {
+                    "rule": "repeated",
+                    "type": "Player",
+                    "name": "players",
+                    "id": 22
+                },
+                {
+                    "rule": "optional",
+                    "type": "fixed32",
+                    "name": "building_state",
+                    "id": 23
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Player",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "hero_id",
+                            "id": 2
+                        }
+                    ]
                 }
             ]
         },
@@ -18883,6 +18807,39 @@ module.exports={
                     "type": "uint64",
                     "name": "previous_match_override",
                     "id": 38
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_selection_priority_team",
+                    "id": 39
+                },
+                {
+                    "rule": "optional",
+                    "type": "SelectionPriorityType",
+                    "name": "league_selection_priority_choice",
+                    "id": 40,
+                    "options": {
+                        "default": "UNDEFINED"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "SelectionPriorityType",
+                    "name": "league_non_selection_priority_choice",
+                    "id": 41,
+                    "options": {
+                        "default": "UNDEFINED"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "LobbyDotaPauseSetting",
+                    "name": "pause_setting",
+                    "id": 42,
+                    "options": {
+                        "default": "LobbyDotaPauseSetting_Unlimited"
+                    }
                 }
             ]
         },
@@ -22492,6 +22449,18 @@ module.exports={
                     "type": "string",
                     "name": "share_lobby_passkey",
                     "id": 21
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "private_chat_channel_id",
+                    "id": 22
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "status",
+                    "id": 23
                 }
             ],
             "messages": [
@@ -22540,6 +22509,12 @@ module.exports={
                     "type": "uint32",
                     "name": "channel_user_id",
                     "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "status",
+                    "id": 4
                 }
             ]
         },
@@ -22605,6 +22580,12 @@ module.exports={
                     "type": "uint32",
                     "name": "channel_user_id",
                     "id": 9
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "welcome_message",
+                    "id": 10
                 }
             ],
             "enums": [
@@ -22650,6 +22631,22 @@ module.exports={
                         {
                             "name": "CHANNEL_TYPE_DISABLED",
                             "id": 9
+                        },
+                        {
+                            "name": "PRIVATE_CHAT_CREATE_FAILED",
+                            "id": 10
+                        },
+                        {
+                            "name": "PRIVATE_CHAT_NO_PERMISSION",
+                            "id": 11
+                        },
+                        {
+                            "name": "PRIVATE_CHAT_CREATE_LOCK_FAILED",
+                            "id": 12
+                        },
+                        {
+                            "name": "PRIVATE_CHAT_KICKED",
+                            "id": 13
                         }
                     ]
                 }
@@ -22698,6 +22695,12 @@ module.exports={
                     "type": "uint32",
                     "name": "channel_user_id",
                     "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "status",
+                    "id": 5
                 }
             ]
         },
@@ -22767,6 +22770,12 @@ module.exports={
                             "type": "uint32",
                             "name": "channel_user_id",
                             "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "status",
+                            "id": 4
                         }
                     ]
                 }
@@ -22863,6 +22872,12 @@ module.exports={
                             "type": "uint32",
                             "name": "channel_user_id",
                             "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "status",
+                            "id": 4
                         }
                     ]
                 }
@@ -24089,6 +24104,12 @@ module.exports={
                     "type": "uint64",
                     "name": "lobby_id",
                     "id": 4
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "regions",
+                    "id": 5
                 }
             ]
         },
@@ -24464,6 +24485,76 @@ module.exports={
             ]
         },
         {
+            "name": "CMsgDOTAProfileTickets",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "result",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_id",
+                    "id": 2
+                },
+                {
+                    "rule": "repeated",
+                    "type": "LeaguePass",
+                    "name": "league_passes",
+                    "id": 3
+                },
+                {
+                    "rule": "repeated",
+                    "type": "EventTicket",
+                    "name": "event_tickets",
+                    "id": 4
+                }
+            ],
+            "messages": [
+                {
+                    "name": "LeaguePass",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "league_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "item_def",
+                            "id": 2
+                        }
+                    ]
+                },
+                {
+                    "name": "EventTicket",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "event_id",
+                            "id": 1
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCGetProfileTickets",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
             "name": "CMsgGCSteamProfileRequest",
             "fields": [
                 {
@@ -24626,6 +24717,12 @@ module.exports={
                     "type": "CExtraMsg",
                     "name": "extra_messages",
                     "id": 26
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "minimum_recent_item_id",
+                    "id": 27
                 }
             ],
             "messages": [
@@ -24898,6 +24995,42 @@ module.exports={
                     "type": "uint32",
                     "name": "amateur_region",
                     "id": 14
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "organizer",
+                    "id": 15
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "start_date",
+                    "id": 16
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "end_date",
+                    "id": 17
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "location",
+                    "id": 18
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "inventory_image",
+                    "id": 19
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "square_image",
+                    "id": 20
                 }
             ]
         },
@@ -25452,7 +25585,7 @@ module.exports={
             ]
         },
         {
-            "name": "CMsgSockAddrList",
+            "name": "CMsgMatchGroupServerStatus",
             "fields": [
                 {
                     "rule": "repeated",
@@ -25471,6 +25604,21 @@ module.exports={
                     "options": {
                         "packed": true
                     }
+                },
+                {
+                    "rule": "optional",
+                    "type": "sint32",
+                    "name": "auto_region_select_ping_penalty",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "EMatchGroupServerStatus",
+                    "name": "status",
+                    "id": 4,
+                    "options": {
+                        "default": "k_EMatchGroupServerStatus_OK"
+                    }
                 }
             ]
         },
@@ -25479,27 +25627,15 @@ module.exports={
             "fields": [
                 {
                     "rule": "repeated",
-                    "type": "CMsgSockAddrList",
-                    "name": "servers_by_group",
+                    "type": "CMsgMatchGroupServerStatus",
+                    "name": "match_groups",
                     "id": 5
                 },
                 {
                     "rule": "optional",
                     "type": "uint32",
-                    "name": "servers_to_ping",
+                    "name": "legacy_servers_to_ping",
                     "id": 2
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "reply_odds",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "reply_detailed_odds",
-                    "id": 4
                 }
             ]
         },
@@ -25510,6 +25646,12 @@ module.exports={
         {
             "name": "CMsgDOTAMatchmakingStatsResponse",
             "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "matchgroups_version",
+                    "id": 1
+                },
                 {
                     "rule": "repeated",
                     "type": "uint32",
@@ -25524,33 +25666,15 @@ module.exports={
                 },
                 {
                     "rule": "optional",
-                    "type": "uint32",
-                    "name": "disabled_groups",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "disabled_groups_source2",
-                    "id": 8
-                },
-                {
-                    "rule": "optional",
-                    "type": "CMsgMatchmakingGroupServerSample",
-                    "name": "gameserver_sample",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
                     "type": "CMsgMatchmakingGroupServerSample",
                     "name": "gameserver_sample_source2",
                     "id": 6
                 },
                 {
                     "rule": "optional",
-                    "type": "bool",
-                    "name": "maintenance_alerts",
-                    "id": 5
+                    "type": "uint32",
+                    "name": "legacy_disabled_groups_source2",
+                    "id": 8
                 }
             ]
         },
@@ -25897,6 +26021,78 @@ module.exports={
                             "type": "uint32",
                             "name": "losses",
                             "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "win_streak",
+                            "id": 4
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "best_win_streak",
+                            "id": 5
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "avg_kills",
+                            "id": 6
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "avg_deaths",
+                            "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "avg_assists",
+                            "id": 8
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "avg_gpm",
+                            "id": 9
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "avg_xpm",
+                            "id": 10
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "best_kills",
+                            "id": 11
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "best_assists",
+                            "id": 12
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "best_gpm",
+                            "id": 13
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "best_xpm",
+                            "id": 14
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "float",
+                            "name": "performance",
+                            "id": 15
                         }
                     ]
                 }
@@ -27565,60 +27761,6 @@ module.exports={
             ]
         },
         {
-            "name": "CMsgClientToGCExchangeItemsForOffering",
-            "fields": [
-                {
-                    "rule": "repeated",
-                    "type": "uint64",
-                    "name": "item_ids",
-                    "id": 1
-                },
-                {
-                    "rule": "optional",
-                    "type": "uint32",
-                    "name": "recycle_id",
-                    "id": 2
-                }
-            ]
-        },
-        {
-            "name": "CMsgClientToGCExchangeItemsForOfferingResponse",
-            "fields": [
-                {
-                    "rule": "optional",
-                    "type": "EResponse",
-                    "name": "response",
-                    "id": 1,
-                    "options": {
-                        "default": "eResponse_Success"
-                    }
-                }
-            ],
-            "enums": [
-                {
-                    "name": "EResponse",
-                    "values": [
-                        {
-                            "name": "eResponse_Success",
-                            "id": 0
-                        },
-                        {
-                            "name": "eResponse_OfferingDisabled",
-                            "id": 1
-                        },
-                        {
-                            "name": "eResponse_InvalidItems",
-                            "id": 2
-                        },
-                        {
-                            "name": "eResponse_InternalError",
-                            "id": 3
-                        }
-                    ]
-                }
-            ]
-        },
-        {
             "name": "CMsgClientToGCPlayerStatsRequest",
             "fields": [
                 {
@@ -28438,6 +28580,12 @@ module.exports={
                             "type": "uint32",
                             "name": "after_series_id",
                             "id": 7
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "num_completed_games",
+                            "id": 8
                         }
                     ],
                     "messages": [
@@ -28467,6 +28615,12 @@ module.exports={
                                     "type": "uint32",
                                     "name": "team_score",
                                     "id": 4
+                                },
+                                {
+                                    "rule": "optional",
+                                    "type": "uint32",
+                                    "name": "team_wins",
+                                    "id": 5
                                 }
                             ]
                         }
@@ -28589,6 +28743,563 @@ module.exports={
             ]
         },
         {
+            "name": "CDOTAReplayDownloadInfo",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CMsgDOTAMatchMinimal",
+                    "name": "match",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "title",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "description",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "size",
+                    "id": 4
+                },
+                {
+                    "rule": "repeated",
+                    "type": "string",
+                    "name": "tags",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "exists_on_disk",
+                    "id": 6
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Highlight",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "timestamp",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "description",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CDOTABroadcasterInfo",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "fixed64",
+                    "name": "server_steam_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "live",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "team_name_radiant",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "team_name_dire",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "stage_name",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "series_game",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "series_type",
+                    "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "upcoming_broadcast_timestamp",
+                    "id": 9
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "allow_live_video",
+                    "id": 10
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCH264Unsupported",
+            "fields": []
+        },
+        {
+            "name": "CMsgClientToGCRequestH264Support",
+            "fields": []
+        },
+        {
+            "name": "CMsgClientToGCGetQuestProgress",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "uint32",
+                    "name": "quest_ids",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCGetQuestProgressResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "success",
+                    "id": 1
+                },
+                {
+                    "rule": "repeated",
+                    "type": "Quest",
+                    "name": "quests",
+                    "id": 2
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Challenge",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "challenge_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "time_completed",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "attempts",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "hero_id",
+                            "id": 4
+                        }
+                    ]
+                },
+                {
+                    "name": "Quest",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "quest_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "repeated",
+                            "type": "Challenge",
+                            "name": "completed_challenges",
+                            "id": 2
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCToClientMatchSignedOut",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "match_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCGetHeroStatsHistory",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "hero_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCGetHeroStatsHistoryResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "hero_id",
+                    "id": 1
+                },
+                {
+                    "rule": "repeated",
+                    "type": "CMsgDOTASDOHeroStatsHistory",
+                    "name": "records",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCPrivateChatInvite",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "private_chat_channel_name",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "invited_account_id",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCPrivateChatKick",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "private_chat_channel_name",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "kick_account_id",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCPrivateChatPromote",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "private_chat_channel_name",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "promote_account_id",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCPrivateChatDemote",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "private_chat_channel_name",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "demote_account_id",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCToClientPrivateChatResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "private_chat_channel_name",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "Result",
+                    "name": "result",
+                    "id": 2,
+                    "options": {
+                        "default": "SUCCESS"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "username",
+                    "id": 3
+                }
+            ],
+            "enums": [
+                {
+                    "name": "Result",
+                    "values": [
+                        {
+                            "name": "SUCCESS",
+                            "id": 0
+                        },
+                        {
+                            "name": "FAILURE_CREATION_LOCK",
+                            "id": 1
+                        },
+                        {
+                            "name": "FAILURE_SQL_TRANSACTION",
+                            "id": 2
+                        },
+                        {
+                            "name": "FAILURE_SDO_LOAD",
+                            "id": 3
+                        },
+                        {
+                            "name": "FAILURE_NO_PERMISSION",
+                            "id": 4
+                        },
+                        {
+                            "name": "FAILURE_ALREADY_MEMBER",
+                            "id": 5
+                        },
+                        {
+                            "name": "FAILURE_NOT_A_MEMBER",
+                            "id": 7
+                        },
+                        {
+                            "name": "FAILURE_NO_REMAINING_ADMINS",
+                            "id": 8
+                        },
+                        {
+                            "name": "FAILURE_NO_ROOM",
+                            "id": 9
+                        },
+                        {
+                            "name": "FAILURE_CREATION_RATE_LIMITED",
+                            "id": 10
+                        },
+                        {
+                            "name": "FAILURE_UNKNOWN_CHANNEL_NAME",
+                            "id": 11
+                        },
+                        {
+                            "name": "FAILURE_UNKNOWN_USER",
+                            "id": 12
+                        },
+                        {
+                            "name": "FAILURE_UNKNOWN_ERROR",
+                            "id": 13
+                        },
+                        {
+                            "name": "FAILURE_CANNOT_KICK_ADMIN",
+                            "id": 14
+                        },
+                        {
+                            "name": "FAILURE_ALREADY_ADMIN",
+                            "id": 15
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCPrivateChatInfoRequest",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "private_chat_channel_name",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCToClientPrivateChatInfoResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "private_chat_channel_name",
+                    "id": 1
+                },
+                {
+                    "rule": "repeated",
+                    "type": "Member",
+                    "name": "members",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "creator",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "creation_date",
+                    "id": 4
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Member",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "name",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "status",
+                            "id": 3
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgPlayerBehaviorReport",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "match_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "seq_num",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "reasons",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "matches_in_report",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "matches_clean",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "matches_reported",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "matches_abandoned",
+                    "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "reports_count",
+                    "id": 9
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "reports_parties",
+                    "id": 10
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "commend_count",
+                    "id": 11
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "end_score",
+                    "id": 13
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "client_acknowledged",
+                    "id": 100
+                }
+            ]
+        },
+        {
             "name": "CMsgApplyAutograph",
             "fields": [
                 {
@@ -28695,6 +29406,12 @@ module.exports={
                     "type": "uint32",
                     "name": "result",
                     "id": 1
+                },
+                {
+                    "rule": "repeated",
+                    "type": "uint64",
+                    "name": "item_ids",
+                    "id": 2
                 }
             ]
         },
@@ -28702,9 +29419,9 @@ module.exports={
             "name": "CMsgRequestItemPurgatory_RefundPurchase",
             "fields": [
                 {
-                    "rule": "optional",
+                    "rule": "repeated",
                     "type": "uint64",
-                    "name": "item_id",
+                    "name": "item_ids",
                     "id": 1
                 }
             ]
@@ -28948,7 +29665,7 @@ module.exports={
                 {
                     "rule": "optional",
                     "type": "uint32",
-                    "name": "crate_item_def",
+                    "name": "response",
                     "id": 1
                 },
                 {
@@ -28956,6 +29673,21 @@ module.exports={
                     "type": "uint32",
                     "name": "item_defs",
                     "id": 2
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResult",
+                    "values": [
+                        {
+                            "name": "k_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_Failed",
+                            "id": 1
+                        }
+                    ]
                 }
             ]
         },
@@ -29347,12 +30079,29 @@ module.exports={
             ]
         },
         {
-            "name": "CMsgGCPartnerRechargeRedirectURLRequest",
+            "name": "CGCStoreRechargeRedirect_LineItem",
             "fields": [
                 {
                     "rule": "optional",
                     "type": "uint32",
-                    "name": "def_index",
+                    "name": "item_def_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "quantity",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgGCPartnerRechargeRedirectURLRequest",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "CGCStoreRechargeRedirect_LineItem",
+                    "name": "line_items",
                     "id": 1
                 }
             ]
@@ -29454,6 +30203,35 @@ module.exports={
                     "type": "uint32",
                     "name": "response",
                     "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "item_id",
+                    "id": 2
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EResultCode",
+                    "values": [
+                        {
+                            "name": "k_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_Failed_CodeNotFound",
+                            "id": 1
+                        },
+                        {
+                            "name": "k_Failed_CodeAlreadyUsed",
+                            "id": 2
+                        },
+                        {
+                            "name": "k_Failed_OtherError",
+                            "id": 3
+                        }
+                    ]
                 }
             ]
         },
@@ -29602,19 +30380,68 @@ module.exports={
             ]
         },
         {
-            "name": "CMsgGCToClientBundleUnpacked",
+            "name": "CMsgClientToGCUnpackBundle",
             "fields": [
                 {
                     "rule": "optional",
                     "type": "uint64",
-                    "name": "bundle_item_id",
+                    "name": "item_id",
                     "id": 1
-                },
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCUnpackBundleResponse",
+            "fields": [
                 {
                     "rule": "repeated",
                     "type": "uint64",
-                    "name": "item_ids",
-                    "id": 2
+                    "name": "unpacked_item_ids",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "EUnpackBundle",
+                    "name": "response",
+                    "id": 2,
+                    "options": {
+                        "default": "k_UnpackBundle_Succeeded"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "EUnpackBundle",
+                    "values": [
+                        {
+                            "name": "k_UnpackBundle_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_UnpackBundle_Failed_ItemIsNotBundle",
+                            "id": 1
+                        },
+                        {
+                            "name": "k_UnpackBundle_Failed_UnableToCreateContainedItem",
+                            "id": 2
+                        },
+                        {
+                            "name": "k_UnpackBundle_Failed_SOCacheError",
+                            "id": 3
+                        },
+                        {
+                            "name": "k_UnpackBundle_Failed_ItemIsInvalid",
+                            "id": 4
+                        },
+                        {
+                            "name": "k_UnpackBundle_Failed_BadItemQuantity",
+                            "id": 5
+                        },
+                        {
+                            "name": "k_UnpackBundle_Failed_UnableToDeleteItem",
+                            "id": 6
+                        }
+                    ]
                 }
             ]
         },
@@ -29654,6 +30481,56 @@ module.exports={
                     "type": "fixed64",
                     "name": "so_cache_version_id",
                     "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCSetItemStyle",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "item_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "style_index",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCSetItemStyleResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "ESetStyle",
+                    "name": "response",
+                    "id": 1,
+                    "options": {
+                        "default": "k_SetStyle_Succeeded"
+                    }
+                }
+            ],
+            "enums": [
+                {
+                    "name": "ESetStyle",
+                    "values": [
+                        {
+                            "name": "k_SetStyle_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_SetStyle_Failed",
+                            "id": 1
+                        },
+                        {
+                            "name": "k_SetStyle_Failed_StyleIsLocked",
+                            "id": 2
+                        }
+                    ]
                 }
             ]
         },
@@ -29750,6 +30627,18 @@ module.exports={
                         {
                             "name": "k_UnlockStyle_Failed_AlreadyUnlocked",
                             "id": 8
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_OtherError",
+                            "id": 9
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_ItemIsInvalid",
+                            "id": 10
+                        },
+                        {
+                            "name": "k_UnlockStyle_Failed_ToolIsInvalid",
+                            "id": 11
                         }
                     ]
                 }
@@ -29841,7 +30730,7 @@ module.exports={
             ]
         },
         {
-            "name": "CMsgGCRemoveItemAttributeMsg",
+            "name": "CMsgClientToGCRemoveItemAttribute",
             "fields": [
                 {
                     "rule": "optional",
@@ -29852,7 +30741,54 @@ module.exports={
             ]
         },
         {
-            "name": "CMsgGCNameItem",
+            "name": "CMsgClientToGCRemoveItemAttributeResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "ERemoveItemAttribute",
+                    "name": "response",
+                    "id": 1,
+                    "options": {
+                        "default": "k_RemoveItemAttribute_Succeeded"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "item_id",
+                    "id": 2
+                }
+            ],
+            "enums": [
+                {
+                    "name": "ERemoveItemAttribute",
+                    "values": [
+                        {
+                            "name": "k_RemoveItemAttribute_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_RemoveItemAttribute_Failed",
+                            "id": 1
+                        },
+                        {
+                            "name": "k_RemoveItemAttribute_Failed_ItemIsInvalid",
+                            "id": 2
+                        },
+                        {
+                            "name": "k_RemoveItemAttribute_Failed_AttributeCannotBeRemoved",
+                            "id": 3
+                        },
+                        {
+                            "name": "k_RemoveItemAttribute_Failed_AttributeDoesntExist",
+                            "id": 4
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCNameItem",
             "fields": [
                 {
                     "rule": "optional",
@@ -29875,6 +30811,53 @@ module.exports={
             ]
         },
         {
+            "name": "CMsgClientToGCNameItemResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "ENameItem",
+                    "name": "response",
+                    "id": 1,
+                    "options": {
+                        "default": "k_NameItem_Succeeded"
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "item_id",
+                    "id": 2
+                }
+            ],
+            "enums": [
+                {
+                    "name": "ENameItem",
+                    "values": [
+                        {
+                            "name": "k_NameItem_Succeeded",
+                            "id": 0
+                        },
+                        {
+                            "name": "k_NameItem_Failed",
+                            "id": 1
+                        },
+                        {
+                            "name": "k_NameItem_Failed_ToolIsInvalid",
+                            "id": 2
+                        },
+                        {
+                            "name": "k_NameItem_Failed_ItemIsInvalid",
+                            "id": 3
+                        },
+                        {
+                            "name": "k_NameItem_Failed_NameIsInvalid",
+                            "id": 4
+                        }
+                    ]
+                }
+            ]
+        },
+        {
             "name": "CMsgGCSetItemPosition",
             "fields": [
                 {
@@ -29887,6 +30870,454 @@ module.exports={
                     "rule": "optional",
                     "type": "uint32",
                     "name": "new_position",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CAttribute_ItemDynamicRecipeComponent",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "item_def",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "item_quality",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "item_flags",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "attributes_string",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "item_count",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "items_fulfilled",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "item_rarity",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "lootlist",
+                    "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "fulfilled_item_id",
+                    "id": 9
+                }
+            ]
+        },
+        {
+            "name": "CProtoItemSocket",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "item_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "attr_def_index",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "required_type",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "required_hero",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "gem_def_index",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "not_tradable",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "required_item_slot",
+                    "id": 7
+                }
+            ]
+        },
+        {
+            "name": "CProtoItemSocket_Empty",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CProtoItemSocket",
+                    "name": "socket",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CProtoItemSocket_Effect",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CProtoItemSocket",
+                    "name": "socket",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "effect",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CProtoItemSocket_Color",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CProtoItemSocket",
+                    "name": "socket",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "red",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "green",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "blue",
+                    "id": 4
+                }
+            ]
+        },
+        {
+            "name": "CProtoItemSocket_Strange",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CProtoItemSocket",
+                    "name": "socket",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "strange_type",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "strange_value",
+                    "id": 3
+                }
+            ]
+        },
+        {
+            "name": "CProtoItemSocket_Spectator",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CProtoItemSocket",
+                    "name": "socket",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "games_viewed",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "corporation_id",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "league_id",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "team_id",
+                    "id": 5
+                }
+            ]
+        },
+        {
+            "name": "CProtoItemSocket_AssetModifier",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CProtoItemSocket",
+                    "name": "socket",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "asset_modifier",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CProtoItemSocket_AssetModifier_DESERIALIZE_FROM_STRING_ONLY",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CProtoItemSocket",
+                    "name": "socket",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "asset_modifier",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "anim_modifier",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "ability_effect",
+                    "id": 4
+                }
+            ]
+        },
+        {
+            "name": "CProtoItemSocket_Autograph",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CProtoItemSocket",
+                    "name": "socket",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "autograph",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "autograph_id",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "autograph_score",
+                    "id": 4
+                }
+            ]
+        },
+        {
+            "name": "CProtoItemSocket_StaticVisuals",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CProtoItemSocket",
+                    "name": "socket",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CAttribute_String",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "value",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CWorkshop_GetItemDailyRevenue_Request",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "appid",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "item_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "date_start",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "date_end",
+                    "id": 4
+                }
+            ]
+        },
+        {
+            "name": "CWorkshop_GetItemDailyRevenue_Response",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "CountryDailyRevenue",
+                    "name": "country_revenue",
+                    "id": 1
+                }
+            ],
+            "messages": [
+                {
+                    "name": "CountryDailyRevenue",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "string",
+                            "name": "country_code",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "date",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "int64",
+                            "name": "revenue_usd",
+                            "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "int32",
+                            "name": "units",
+                            "id": 4
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgGenericResult",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "eresult",
+                    "id": 1,
+                    "options": {
+                        "default": 2
+                    }
+                }
+            ]
+        },
+        {
+            "name": "CMsgSQLGCToGCGrantBackpackSlots",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "add_slots",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCLookupAccountName",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_id",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CMsgClientToGCLookupAccountNameResponse",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "account_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "account_name",
                     "id": 2
                 }
             ]
@@ -30077,12 +31508,6 @@ module.exports={
                 },
                 {
                     "rule": "optional",
-                    "type": "uint32",
-                    "name": "tower_state",
-                    "id": 4
-                },
-                {
-                    "rule": "optional",
                     "type": "bool",
                     "name": "first_blood_happened",
                     "id": 6
@@ -30122,15 +31547,15 @@ module.exports={
                 },
                 {
                     "rule": "optional",
-                    "type": "uint32",
-                    "name": "barracks_state",
-                    "id": 13
-                },
-                {
-                    "rule": "optional",
                     "type": "int32",
                     "name": "radiant_lead",
                     "id": 14
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "building_state",
+                    "id": 15
                 }
             ],
             "messages": [
@@ -30204,10 +31629,6 @@ module.exports={
                             "id": 7
                         },
                         {
-                            "name": "TOWER_STATE",
-                            "id": 9
-                        },
-                        {
                             "name": "GAMESTATE_TIMEOUT",
                             "id": 10
                         },
@@ -30216,12 +31637,12 @@ module.exports={
                             "id": 11
                         },
                         {
-                            "name": "BARRACKS_STATE",
-                            "id": 12
-                        },
-                        {
                             "name": "KILLS",
                             "id": 13
+                        },
+                        {
+                            "name": "BUILDING_STATE",
+                            "id": 14
                         }
                     ]
                 }
@@ -30364,6 +31785,15 @@ module.exports={
                     "type": "uint32",
                     "name": "server_cluster",
                     "id": 20
+                },
+                {
+                    "rule": "optional",
+                    "type": "CustomGames",
+                    "name": "allow_custom_games",
+                    "id": 23,
+                    "options": {
+                        "default": "BOTH"
+                    }
                 }
             ],
             "enums": [
@@ -30380,6 +31810,23 @@ module.exports={
                         },
                         {
                             "name": "PROXY",
+                            "id": 2
+                        }
+                    ]
+                },
+                {
+                    "name": "CustomGames",
+                    "values": [
+                        {
+                            "name": "BOTH",
+                            "id": 0
+                        },
+                        {
+                            "name": "NONE",
+                            "id": 1
+                        },
+                        {
+                            "name": "ONLY",
                             "id": 2
                         }
                     ]
@@ -32521,6 +33968,12 @@ module.exports={
                     "type": "uint32",
                     "name": "event_id",
                     "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "timestamp",
+                    "id": 5
                 }
             ],
             "messages": [
@@ -33447,6 +34900,12 @@ module.exports={
                     "type": "uint64",
                     "name": "match_id",
                     "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "hero_id",
+                    "id": 5
                 }
             ],
             "messages": [
@@ -33464,6 +34923,12 @@ module.exports={
                             "type": "uint32",
                             "name": "sequence_id",
                             "id": 3
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "progress",
+                            "id": 4
                         }
                     ]
                 }
@@ -33629,6 +35094,60 @@ module.exports={
                             "type": "uint32",
                             "name": "wager",
                             "id": 4
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "CMsgSignOutXPCoins",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "Player",
+                    "name": "players",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "event_id",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "match_id",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "timestamp",
+                    "id": 4
+                }
+            ],
+            "messages": [
+                {
+                    "name": "Player",
+                    "fields": [
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "account_id",
+                            "id": 1
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "xp_gained",
+                            "id": 2
+                        },
+                        {
+                            "rule": "optional",
+                            "type": "uint32",
+                            "name": "coins_spent",
+                            "id": 3
                         }
                     ]
                 }
@@ -33870,9 +35389,15 @@ module.exports={
             "fields": [
                 {
                     "rule": "optional",
-                    "type": "string",
-                    "name": "message",
-                    "id": 1
+                    "type": "uint32",
+                    "name": "ping",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "loss",
+                    "id": 3
                 }
             ]
         },
@@ -34447,12 +35972,6 @@ module.exports={
                 {
                     "rule": "optional",
                     "type": "int32",
-                    "name": "latency",
-                    "id": 3
-                },
-                {
-                    "rule": "optional",
-                    "type": "int32",
                     "name": "entindex",
                     "id": 4
                 },
@@ -34606,6 +36125,12 @@ module.exports={
                     "type": "CMsgVector",
                     "name": "origin",
                     "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "reverse",
+                    "id": 4
                 }
             ]
         },
@@ -35932,6 +37457,12 @@ module.exports={
                     "type": "float",
                     "name": "maximpacttime",
                     "id": 10
+                },
+                {
+                    "rule": "optional",
+                    "type": "fixed32",
+                    "name": "colorgemcolor",
+                    "id": 11
                 }
             ]
         },
@@ -35991,6 +37522,12 @@ module.exports={
                     "type": "CMsgVector",
                     "name": "vTargetLoc",
                     "id": 10
+                },
+                {
+                    "rule": "optional",
+                    "type": "fixed32",
+                    "name": "colorgemcolor",
+                    "id": 11
                 }
             ]
         },
@@ -37036,6 +38573,23 @@ module.exports={
                     "rule": "optional",
                     "type": "uint32",
                     "name": "team",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CDOTAUserMsg_XPAlert",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "player_id",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "target_entindex",
                     "id": 2
                 }
             ]
@@ -38265,44 +39819,50 @@ module.exports={
                 {
                     "rule": "optional",
                     "type": "bool",
-                    "name": "needs_redraw_every_frame",
+                    "name": "needs_intermediate_texture",
                     "id": 52
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "needs_redraw_every_frame",
+                    "id": 53
                 },
                 {
                     "rule": "optional",
                     "type": "CTextShadowData",
                     "name": "text_shadow",
-                    "id": 53
+                    "id": 54
                 },
                 {
                     "rule": "optional",
                     "type": "uint32",
                     "name": "mix_blend_mode",
-                    "id": 54
-                },
-                {
-                    "rule": "optional",
-                    "type": "double",
-                    "name": "occluded_left_edge",
                     "id": 55
                 },
                 {
                     "rule": "optional",
                     "type": "double",
-                    "name": "occluded_top_edge",
+                    "name": "occluded_left_edge",
                     "id": 56
                 },
                 {
                     "rule": "optional",
                     "type": "double",
-                    "name": "occluded_right_edge",
+                    "name": "occluded_top_edge",
                     "id": 57
                 },
                 {
                     "rule": "optional",
                     "type": "double",
-                    "name": "occluded_bottom_edge",
+                    "name": "occluded_right_edge",
                     "id": 58
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "occluded_bottom_edge",
+                    "id": 59
                 }
             ]
         },
@@ -40035,6 +41595,159 @@ module.exports={
             "fields": []
         },
         {
+            "name": "CMsgPushPanelContextInLayer",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m00",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m01",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m02",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m03",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m10",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m11",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m12",
+                    "id": 7
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m13",
+                    "id": 8
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m20",
+                    "id": 9
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m21",
+                    "id": 10
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m22",
+                    "id": 11
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m23",
+                    "id": 12
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m30",
+                    "id": 13
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m31",
+                    "id": 14
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m32",
+                    "id": 15
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "transform_m33",
+                    "id": 16
+                },
+                {
+                    "rule": "optional",
+                    "type": "CBoxShadowData",
+                    "name": "box_shadow",
+                    "id": 17
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "width",
+                    "id": 18
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "height",
+                    "id": 19
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "position_x",
+                    "id": 20
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "position_y",
+                    "id": 21
+                },
+                {
+                    "rule": "optional",
+                    "type": "CBorderData",
+                    "name": "border",
+                    "id": 22
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "scroll_x",
+                    "id": 23
+                },
+                {
+                    "rule": "optional",
+                    "type": "double",
+                    "name": "scroll_y",
+                    "id": 24
+                }
+            ]
+        },
+        {
+            "name": "CMsgPopPanelContextInLayer",
+            "fields": []
+        },
+        {
             "name": "CMsgPushAAndTContext",
             "fields": [
                 {
@@ -40202,20 +41915,38 @@ module.exports={
                 {
                     "rule": "optional",
                     "type": "bool",
-                    "name": "wants_hit_test",
+                    "name": "needs_intermediate_texture",
                     "id": 29
                 },
                 {
                     "rule": "optional",
-                    "type": "uint32",
-                    "name": "mix_blend_mode",
+                    "type": "bool",
+                    "name": "clip_after_transform",
                     "id": 30
                 },
                 {
                     "rule": "optional",
                     "type": "bool",
-                    "name": "opaque_background",
+                    "name": "wants_hit_test",
                     "id": 31
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "mix_blend_mode",
+                    "id": 32
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "opaque_background",
+                    "id": 33
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "child_panel_count",
+                    "id": 34
                 }
             ]
         },
@@ -40354,6 +42085,12 @@ module.exports={
                     "options": {
                         "default": 0
                     }
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgOpacity",
+                    "name": "texture_opacity",
+                    "id": 8
                 }
             ]
         },
@@ -40476,6 +42213,15 @@ module.exports={
                     "id": 7,
                     "options": {
                         "default": 0
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "float",
+                    "name": "texture_opacity",
+                    "id": 8,
+                    "options": {
+                        "default": 1
                     }
                 }
             ]
@@ -41440,6 +43186,12 @@ module.exports={
                 {
                     "rule": "optional",
                     "type": "CMsgSteamDatagramConnectionQuality",
+                    "name": "r2s",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgSteamDatagramConnectionQuality",
                     "name": "c2s",
                     "id": 2
                 },
@@ -41458,6 +43210,12 @@ module.exports={
                 {
                     "rule": "optional",
                     "type": "uint32",
+                    "name": "seq_num_r2s",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
                     "name": "seq_num_c2s",
                     "id": 6
                 },
@@ -41472,6 +43230,47 @@ module.exports={
                     "type": "uint32",
                     "name": "client_session_id",
                     "id": 8
+                }
+            ]
+        },
+        {
+            "name": "CMsgSteamDatagramConnectionStatsServerToRouter",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CMsgSteamDatagramConnectionQuality",
+                    "name": "s2r",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "CMsgSteamDatagramConnectionQuality",
+                    "name": "s2c",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "seq_num_s2r",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "seq_num_s2c",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "fixed64",
+                    "name": "client_steam_id",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "client_session_id",
+                    "id": 6
                 }
             ]
         },
@@ -41635,6 +43434,194 @@ module.exports={
                     ]
                 }
             ]
+        },
+        {
+            "name": "CCloud_GetUploadServerInfo_Request",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "appid",
+                    "id": 1,
+                    "options": {
+                        "(description)": "App ID to which a file will be uploaded to."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "CCloud_GetUploadServerInfo_Response",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "server_url",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CCloud_GetFileDetails_Request",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "ugcid",
+                    "id": 1,
+                    "options": {
+                        "(description)": "ID of the Cloud file to get details for."
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "appid",
+                    "id": 2,
+                    "options": {
+                        "(description)": "App ID the file belongs to."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "CCloud_UserFile",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "appid",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "ugcid",
+                    "id": 2
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "filename",
+                    "id": 3
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint64",
+                    "name": "timestamp",
+                    "id": 4
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "file_size",
+                    "id": 5
+                },
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "url",
+                    "id": 6
+                },
+                {
+                    "rule": "optional",
+                    "type": "fixed64",
+                    "name": "steamid_creator",
+                    "id": 7
+                }
+            ]
+        },
+        {
+            "name": "CCloud_GetFileDetails_Response",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "CCloud_UserFile",
+                    "name": "details",
+                    "id": 1
+                }
+            ]
+        },
+        {
+            "name": "CCloud_EnumerateUserFiles_Request",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "appid",
+                    "id": 1,
+                    "options": {
+                        "(description)": "App ID to enumerate the files of."
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "bool",
+                    "name": "extended_details",
+                    "id": 2,
+                    "options": {
+                        "(description)": "(Optional) Get extended details back on the files found. Defaults to only returned the app Id and UGC Id of the files found."
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "count",
+                    "id": 3,
+                    "options": {
+                        "(description)": "(Optional) Maximum number of results to return on this call. Defaults to a maximum of 500 files returned."
+                    }
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "start_index",
+                    "id": 4,
+                    "options": {
+                        "(description)": "(Optional) Starting index to begin enumeration at. Defaults to the beginning of the list."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "CCloud_EnumerateUserFiles_Response",
+            "fields": [
+                {
+                    "rule": "repeated",
+                    "type": "CCloud_UserFile",
+                    "name": "files",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "total_files",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "CCloud_Delete_Request",
+            "fields": [
+                {
+                    "rule": "optional",
+                    "type": "string",
+                    "name": "filename",
+                    "id": 1
+                },
+                {
+                    "rule": "optional",
+                    "type": "uint32",
+                    "name": "appid",
+                    "id": 2,
+                    "options": {
+                        "(description)": "App ID the file belongs to."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "CCloud_Delete_Response",
+            "fields": []
         },
         {
             "name": "COAuthToken_ImplicitGrantNoPrompt_Request",
@@ -44687,6 +46674,14 @@ module.exports={
                 {
                     "name": "NETWORK_DISCONNECT_REPLAY_INCOMPATIBLE",
                     "id": 71
+                },
+                {
+                    "name": "NETWORK_DISCONNECT_CONNECT_REQUEST_TIMEDOUT",
+                    "id": 72
+                },
+                {
+                    "name": "NETWORK_DISCONNECT_SERVER_INCOMPATIBLE",
+                    "id": 73
                 }
             ]
         },
@@ -45686,6 +47681,10 @@ module.exports={
                 {
                     "name": "DOTA_UNIT_ORDER_MOVE_TO_DIRECTION",
                     "id": 28
+                },
+                {
+                    "name": "DOTA_UNIT_ORDER_PATROL",
+                    "id": 29
                 }
             ]
         },
@@ -45891,6 +47890,14 @@ module.exports={
                 {
                     "name": "DOTA_CM_ExecuteOrders",
                     "id": 350
+                },
+                {
+                    "name": "DOTA_CM_XPAlert",
+                    "id": 351
+                },
+                {
+                    "name": "DOTA_CM_GenericBooleanConvar",
+                    "id": 352
                 }
             ]
         },
@@ -45954,6 +47961,10 @@ module.exports={
                 {
                     "name": "GCConnectionStatus_SUSPENDED",
                     "id": 5
+                },
+                {
+                    "name": "GCConnectionStatus_STEAM_GOING_DOWN",
+                    "id": 6
                 }
             ]
         },
@@ -46231,10 +48242,6 @@ module.exports={
                 {
                     "name": "k_EMsgGCDOTAClearNotifySuccessfulReport",
                     "id": 7104
-                },
-                {
-                    "name": "k_EMsgGCGenericResult",
-                    "id": 7108
                 },
                 {
                     "name": "k_EMsgGCFriendPracticeLobbyListRequest",
@@ -47909,14 +49916,6 @@ module.exports={
                     "id": 7569
                 },
                 {
-                    "name": "k_EMsgClientToGCExchangeItemsForOffering",
-                    "id": 7570
-                },
-                {
-                    "name": "k_EMsgClientToGCExchangeItemsForOfferingResponse",
-                    "id": 7571
-                },
-                {
                     "name": "k_EMsgLobbyEventPoints",
                     "id": 7572
                 },
@@ -47993,10 +49992,6 @@ module.exports={
                     "id": 7590
                 },
                 {
-                    "name": "k_EMsgSQLGCToGCGrantBackpackSlots",
-                    "id": 7591
-                },
-                {
                     "name": "k_EMsgSQLGrantLeagueMatchToTicketHolders",
                     "id": 7592
                 },
@@ -48063,6 +50058,14 @@ module.exports={
                 {
                     "name": "k_EMsgSQLGCToGCGrantBadgePoints",
                     "id": 7608
+                },
+                {
+                    "name": "k_EMsgGCToGCGetAccountMatchStatus",
+                    "id": 7609
+                },
+                {
+                    "name": "k_EMsgGCToGCGetAccountMatchStatusResponse",
+                    "id": 7610
                 },
                 {
                     "name": "k_EMsgGCDev_GrantWarKill",
@@ -48335,6 +50338,86 @@ module.exports={
                 {
                     "name": "k_EMsgGCToGCEnsureAccountInPartyResponse",
                     "id": 8072
+                },
+                {
+                    "name": "k_EMsgClientToGCGetProfileTickets",
+                    "id": 8073
+                },
+                {
+                    "name": "k_EMsgClientToGCGetProfileTicketsResponse",
+                    "id": 8074
+                },
+                {
+                    "name": "k_EMsgGCToClientMatchGroupsVersion",
+                    "id": 8075
+                },
+                {
+                    "name": "k_EMsgClientToGCH264Unsupported",
+                    "id": 8076
+                },
+                {
+                    "name": "k_EMsgClientToGCRequestH264Support",
+                    "id": 8077
+                },
+                {
+                    "name": "k_EMsgClientToGCGetQuestProgress",
+                    "id": 8078
+                },
+                {
+                    "name": "k_EMsgClientToGCGetQuestProgressResponse",
+                    "id": 8079
+                },
+                {
+                    "name": "k_EMsgSignOutXPCoins",
+                    "id": 8080
+                },
+                {
+                    "name": "k_EMsgGCToClientMatchSignedOut",
+                    "id": 8081
+                },
+                {
+                    "name": "k_EMsgGCGetHeroStatsHistory",
+                    "id": 8082
+                },
+                {
+                    "name": "k_EMsgGCGetHeroStatsHistoryResponse",
+                    "id": 8083
+                },
+                {
+                    "name": "k_EMsgClientToGCPrivateChatInvite",
+                    "id": 8084
+                },
+                {
+                    "name": "k_EMsgClientToGCPrivateChatKick",
+                    "id": 8088
+                },
+                {
+                    "name": "k_EMsgClientToGCPrivateChatPromote",
+                    "id": 8089
+                },
+                {
+                    "name": "k_EMsgClientToGCPrivateChatDemote",
+                    "id": 8090
+                },
+                {
+                    "name": "k_EMsgGCToClientPrivateChatResponse",
+                    "id": 8091
+                },
+                {
+                    "name": "k_EMsgClientToGCPrivateChatInfoRequest",
+                    "id": 8092
+                },
+                {
+                    "name": "k_EMsgGCToClientPrivateChatInfoResponse",
+                    "id": 8093
+                },
+                {
+                    "name": "k_EMsgClientToGCLatestBehaviorReportRequest",
+                    "id": 8095
+                },
+                {
+                    "name": "k_EMsgClientToGCLatestBehaviorReport",
+                    "id": 8096
                 }
             ]
         },
@@ -48714,6 +50797,31 @@ module.exports={
             ]
         },
         {
+            "name": "SelectionPriorityType",
+            "values": [
+                {
+                    "name": "UNDEFINED",
+                    "id": 0
+                },
+                {
+                    "name": "RADIANT",
+                    "id": 1
+                },
+                {
+                    "name": "DIRE",
+                    "id": 2
+                },
+                {
+                    "name": "FIRST_PICK",
+                    "id": 3
+                },
+                {
+                    "name": "SECOND_PICK",
+                    "id": 4
+                }
+            ]
+        },
+        {
             "name": "DOTAMatchVote",
             "values": [
                 {
@@ -49000,6 +51108,10 @@ module.exports={
                 {
                     "name": "EVENT_ID_FROSTIVUS",
                     "id": 12
+                },
+                {
+                    "name": "EVENT_ID_WINTER_MAJOR_2015",
+                    "id": 13
                 }
             ]
         },
@@ -49016,6 +51128,23 @@ module.exports={
                 },
                 {
                     "name": "LobbyDotaTV_300",
+                    "id": 2
+                }
+            ]
+        },
+        {
+            "name": "LobbyDotaPauseSetting",
+            "values": [
+                {
+                    "name": "LobbyDotaPauseSetting_Unlimited",
+                    "id": 0
+                },
+                {
+                    "name": "LobbyDotaPauseSetting_Limited",
+                    "id": 1
+                },
+                {
+                    "name": "LobbyDotaPauseSetting_Disabled",
                     "id": 2
                 }
             ]
@@ -49083,6 +51212,14 @@ module.exports={
                 {
                     "name": "k_EDOTAGCSessionNeed_UserTutorials",
                     "id": 105
+                },
+                {
+                    "name": "k_EDOTAGCSessionNeed_UserInUIWasConnectedIdle",
+                    "id": 106
+                },
+                {
+                    "name": "k_EDOTAGCSessionNeed_UserInUINeverConnectedIdle",
+                    "id": 107
                 },
                 {
                     "name": "k_EDOTAGCSessionNeed_GameServerOnline",
@@ -49332,6 +51469,22 @@ module.exports={
                 {
                     "name": "DOTA_COMBATLOG_PICKUP_RUNE",
                     "id": 21
+                },
+                {
+                    "name": "DOTA_COMBATLOG_REVEALED_INVISIBLE",
+                    "id": 22
+                },
+                {
+                    "name": "DOTA_COMBATLOG_HERO_SAVED",
+                    "id": 23
+                },
+                {
+                    "name": "DOTA_COMBATLOG_MANA_RESTORED",
+                    "id": 24
+                },
+                {
+                    "name": "DOTA_COMBATLOG_HERO_LEVELUP",
+                    "id": 25
                 }
             ]
         },
@@ -49405,6 +51558,10 @@ module.exports={
                 {
                     "name": "DOTAChannelType_CustomGame",
                     "id": 16
+                },
+                {
+                    "name": "DOTAChannelType_Private",
+                    "id": 17
                 }
             ]
         },
@@ -49986,6 +52143,23 @@ module.exports={
             ]
         },
         {
+            "name": "EMatchGroupServerStatus",
+            "values": [
+                {
+                    "name": "k_EMatchGroupServerStatus_OK",
+                    "id": 0
+                },
+                {
+                    "name": "k_EMatchGroupServerStatus_LimitedAvailability",
+                    "id": 1
+                },
+                {
+                    "name": "k_EMatchGroupServerStatus_Offline",
+                    "id": 2
+                }
+            ]
+        },
+        {
             "name": "DOTA_WatchReplayType",
             "values": [
                 {
@@ -50215,16 +52389,8 @@ module.exports={
                     "id": 1005
                 },
                 {
-                    "name": "k_EMsgGCNameItem",
+                    "name": "k_EMsgClientToGCNameItem",
                     "id": 1006
-                },
-                {
-                    "name": "k_EMsgGCUnlockCrate",
-                    "id": 1007
-                },
-                {
-                    "name": "k_EMsgGCUnlockCrateResponse",
-                    "id": 1008
                 },
                 {
                     "name": "k_EMsgGCPaintItem",
@@ -50319,7 +52485,7 @@ module.exports={
                     "id": 1038
                 },
                 {
-                    "name": "k_EMsgGCSetItemStyle",
+                    "name": "k_EMsgGCSetItemStyle_DEPRECATED",
                     "id": 1039
                 },
                 {
@@ -50333,22 +52499,6 @@ module.exports={
                 {
                     "name": "k_EMsgGC_RevolvingLootList_DEPRECATED",
                     "id": 1042
-                },
-                {
-                    "name": "k_EMsgGCLookupAccount",
-                    "id": 1043
-                },
-                {
-                    "name": "k_EMsgGCLookupAccountResponse",
-                    "id": 1044
-                },
-                {
-                    "name": "k_EMsgGCLookupAccountName",
-                    "id": 1045
-                },
-                {
-                    "name": "k_EMsgGCLookupAccountNameResponse",
-                    "id": 1046
                 },
                 {
                     "name": "k_EMsgGCUpdateItemSchema",
@@ -50407,19 +52557,11 @@ module.exports={
                     "id": 1064
                 },
                 {
-                    "name": "k_EMsgGC_ReportAbuse",
-                    "id": 1065
-                },
-                {
-                    "name": "k_EMsgGC_ReportAbuseResponse",
-                    "id": 1066
-                },
-                {
                     "name": "k_EMsgGCPresets_SelectPresetForClassReply",
                     "id": 1067
                 },
                 {
-                    "name": "k_EMsgGCNameItemNotification",
+                    "name": "k_EMsgClientToGCNameItemResponse",
                     "id": 1068
                 },
                 {
@@ -50453,6 +52595,10 @@ module.exports={
                 {
                     "name": "k_EMsgGCSetItemPositions",
                     "id": 1077
+                },
+                {
+                    "name": "k_EMsgGCSetItemPositions_RateLimited",
+                    "id": 1096
                 },
                 {
                     "name": "k_EMsgGCApplyEggEssence",
@@ -50553,6 +52699,10 @@ module.exports={
                 {
                     "name": "k_EMsgClientToGCRemoveItemDescription",
                     "id": 1111
+                },
+                {
+                    "name": "k_EMsgClientToGCRemoveItemAttributeResponse",
+                    "id": 1112
                 },
                 {
                     "name": "k_EMsgGCTradingBase",
@@ -50851,7 +53001,7 @@ module.exports={
                     "id": 2566
                 },
                 {
-                    "name": "k_EMsgGCToClientBundleUnpacked",
+                    "name": "k_EMsgClientToGCUnpackBundleResponse",
                     "id": 2567
                 },
                 {
@@ -50885,6 +53035,34 @@ module.exports={
                 {
                     "name": "k_EMsgClientToGCUnlockCrateResponse",
                     "id": 2575
+                },
+                {
+                    "name": "k_EMsgClientToGCUnpackBundle",
+                    "id": 2576
+                },
+                {
+                    "name": "k_EMsgClientToGCSetItemStyle",
+                    "id": 2577
+                },
+                {
+                    "name": "k_EMsgClientToGCSetItemStyleResponse",
+                    "id": 2578
+                },
+                {
+                    "name": "k_EMsgGCGenericResult",
+                    "id": 2579
+                },
+                {
+                    "name": "k_EMsgSQLGCToGCGrantBackpackSlots",
+                    "id": 2580
+                },
+                {
+                    "name": "k_EMsgClientToGCLookupAccountName",
+                    "id": 2581
+                },
+                {
+                    "name": "k_EMsgClientToGCLookupAccountNameResponse",
+                    "id": 2582
                 }
             ]
         },
@@ -51641,6 +53819,10 @@ module.exports={
                 {
                     "name": "DOTA_UM_CombatLogDataHLTV",
                     "id": 554
+                },
+                {
+                    "name": "DOTA_UM_XPAlert",
+                    "id": 555
                 }
             ]
         },
@@ -53519,6 +55701,42 @@ module.exports={
     ],
     "services": [
         {
+            "name": "Cloud",
+            "options": {
+                "(service_description)": "A service for Steam Cloud operations."
+            },
+            "rpc": {
+                "GetUploadServerInfo": {
+                    "request": "CCloud_GetUploadServerInfo_Request",
+                    "response": "CCloud_GetUploadServerInfo_Response",
+                    "options": {
+                        "(method_description)": "Returns the URL of the proper cloud server for a user."
+                    }
+                },
+                "GetFileDetails": {
+                    "request": "CCloud_GetFileDetails_Request",
+                    "response": "CCloud_GetFileDetails_Response",
+                    "options": {
+                        "(method_description)": "Returns details on a Cloud file."
+                    }
+                },
+                "EnumerateUserFiles": {
+                    "request": "CCloud_EnumerateUserFiles_Request",
+                    "response": "CCloud_EnumerateUserFiles_Response",
+                    "options": {
+                        "(method_description)": "Enumerates Cloud files for a user of a given app ID. Returns up to 500 files at a time."
+                    }
+                },
+                "Delete": {
+                    "request": "CCloud_Delete_Request",
+                    "response": "CCloud_Delete_Response",
+                    "options": {
+                        "(method_description)": "Deletes a file from the user's cloud."
+                    }
+                }
+            }
+        },
+        {
             "name": "OAuthToken",
             "options": {
                 "(service_description)": "Service containing methods to manage OAuth tokens"
@@ -53720,7 +55938,8 @@ module.exports={
     "551": "CDOTAUserMsg_CompendiumState",
     "552": "CDOTAUserMsg_ProjectionAbility",
     "553": "CDOTAUserMsg_ProjectionEvent",
-    "554": "CDOTAUserMsg_CombatLogDataHLTV"
+    "554": "CDOTAUserMsg_CombatLogDataHLTV",
+    "555": "CDOTAUserMsg_XPAlert"
   },
   "dems": {
     "0": "CDemoStop",
@@ -53860,7 +56079,9 @@ module.exports={
     "68": "NETWORK_DISCONNECT_STEAM_DENY_BAD_ANTI_CHEAT",
     "69": "NETWORK_DISCONNECT_SERVER_SHUTDOWN",
     "70": "NETWORK_DISCONNECT_SPLITPACKET_SEND_OVERFLOW",
-    "71": "NETWORK_DISCONNECT_REPLAY_INCOMPATIBLE"
+    "71": "NETWORK_DISCONNECT_REPLAY_INCOMPATIBLE",
+    "72": "NETWORK_DISCONNECT_CONNECT_REQUEST_TIMEDOUT",
+    "73": "NETWORK_DISCONNECT_SERVER_INCOMPATIBLE"
   },
   "NET_Messages": {
     "0": "net_NOP",
@@ -54124,7 +56345,8 @@ module.exports={
     "25": "DOTA_UNIT_ORDER_EJECT_ITEM_FROM_STASH",
     "26": "DOTA_UNIT_ORDER_CAST_RUNE",
     "27": "DOTA_UNIT_ORDER_PING_ABILITY",
-    "28": "DOTA_UNIT_ORDER_MOVE_TO_DIRECTION"
+    "28": "DOTA_UNIT_ORDER_MOVE_TO_DIRECTION",
+    "29": "DOTA_UNIT_ORDER_PATROL"
   },
   "EDotaClientMessages": {
     "301": "DOTA_CM_MapLine",
@@ -54176,7 +56398,9 @@ module.exports={
     "347": "DOTA_CM_ChallengeReroll",
     "348": "DOTA_CM_ClickedBuff",
     "349": "DOTA_CM_CoinWager",
-    "350": "DOTA_CM_ExecuteOrders"
+    "350": "DOTA_CM_ExecuteOrders",
+    "351": "DOTA_CM_XPAlert",
+    "352": "DOTA_CM_GenericBooleanConvar"
   },
   "ESourceEngine": {
     "0": "k_ESE_Source1",
@@ -54194,7 +56418,8 @@ module.exports={
     "2": "GCConnectionStatus_NO_SESSION",
     "3": "GCConnectionStatus_NO_SESSION_IN_LOGON_QUEUE",
     "4": "GCConnectionStatus_NO_STEAM",
-    "5": "GCConnectionStatus_SUSPENDED"
+    "5": "GCConnectionStatus_SUSPENDED",
+    "6": "GCConnectionStatus_STEAM_GOING_DOWN"
   },
   "EDOTAGCMsg": {
     "7000": "k_EMsgGCDOTABase",
@@ -54265,7 +56490,6 @@ module.exports={
     "7099": "k_EMsgGCProfileResponse",
     "7102": "k_EMsgGCPopup",
     "7104": "k_EMsgGCDOTAClearNotifySuccessfulReport",
-    "7108": "k_EMsgGCGenericResult",
     "7111": "k_EMsgGCFriendPracticeLobbyListRequest",
     "7112": "k_EMsgGCFriendPracticeLobbyListResponse",
     "7113": "k_EMsgGCPracticeLobbyJoinResponse",
@@ -54684,8 +56908,6 @@ module.exports={
     "7566": "k_EMsgGCHasItemDefsQuery",
     "7567": "k_EMsgGCHasItemDefsResponse",
     "7569": "k_EMsgGCToGCReplayMonitorValidateReplay",
-    "7570": "k_EMsgClientToGCExchangeItemsForOffering",
-    "7571": "k_EMsgClientToGCExchangeItemsForOfferingResponse",
     "7572": "k_EMsgLobbyEventPoints",
     "7573": "k_EMsgGCToGCGetCustomGameTickets",
     "7574": "k_EMsgGCToGCGetCustomGameTicketsResponse",
@@ -54705,7 +56927,6 @@ module.exports={
     "7588": "k_EMsgClientToGCSetPartyLeader",
     "7589": "k_EMsgClientToGCCancelPartyInvites",
     "7590": "k_EMsgGCToGCMasterReloadAccount",
-    "7591": "k_EMsgSQLGCToGCGrantBackpackSlots",
     "7592": "k_EMsgSQLGrantLeagueMatchToTicketHolders",
     "7593": "k_EMsgClientToGCSetAdditionalEquipsResponse",
     "7594": "k_EMsgGCToGCEmoticonUnlockNoRollback",
@@ -54723,6 +56944,8 @@ module.exports={
     "7606": "k_EMsgClientToGCGetAllHeroOrder",
     "7607": "k_EMsgClientToGCGetAllHeroOrderResponse",
     "7608": "k_EMsgSQLGCToGCGrantBadgePoints",
+    "7609": "k_EMsgGCToGCGetAccountMatchStatus",
+    "7610": "k_EMsgGCToGCGetAccountMatchStatusResponse",
     "8001": "k_EMsgGCDev_GrantWarKill",
     "8002": "k_EMsgClientToGCCreateTeamShowcase",
     "8003": "k_EMsgGCToClientTeamShowcaseCreateResult",
@@ -54790,7 +57013,27 @@ module.exports={
     "8069": "k_EMsgServerToGCMatchDetailsRequest",
     "8070": "k_EMsgGCToServerMatchDetailsResponse",
     "8071": "k_EMsgGCToGCEnsureAccountInParty",
-    "8072": "k_EMsgGCToGCEnsureAccountInPartyResponse"
+    "8072": "k_EMsgGCToGCEnsureAccountInPartyResponse",
+    "8073": "k_EMsgClientToGCGetProfileTickets",
+    "8074": "k_EMsgClientToGCGetProfileTicketsResponse",
+    "8075": "k_EMsgGCToClientMatchGroupsVersion",
+    "8076": "k_EMsgClientToGCH264Unsupported",
+    "8077": "k_EMsgClientToGCRequestH264Support",
+    "8078": "k_EMsgClientToGCGetQuestProgress",
+    "8079": "k_EMsgClientToGCGetQuestProgressResponse",
+    "8080": "k_EMsgSignOutXPCoins",
+    "8081": "k_EMsgGCToClientMatchSignedOut",
+    "8082": "k_EMsgGCGetHeroStatsHistory",
+    "8083": "k_EMsgGCGetHeroStatsHistoryResponse",
+    "8084": "k_EMsgClientToGCPrivateChatInvite",
+    "8088": "k_EMsgClientToGCPrivateChatKick",
+    "8089": "k_EMsgClientToGCPrivateChatPromote",
+    "8090": "k_EMsgClientToGCPrivateChatDemote",
+    "8091": "k_EMsgGCToClientPrivateChatResponse",
+    "8092": "k_EMsgClientToGCPrivateChatInfoRequest",
+    "8093": "k_EMsgGCToClientPrivateChatInfoResponse",
+    "8095": "k_EMsgClientToGCLatestBehaviorReportRequest",
+    "8096": "k_EMsgClientToGCLatestBehaviorReport"
   },
   "ESpecialPingValue": {
     "16382": "k_ESpecialPingValue_NoData",
@@ -54894,6 +57137,13 @@ module.exports={
     "9": "DOTA_JOIN_RESULT_LOBBY_FULL",
     "10": "DOTA_JOIN_RESULT_CUSTOM_GAME_INCORRECT_VERSION"
   },
+  "SelectionPriorityType": {
+    "0": "UNDEFINED",
+    "1": "RADIANT",
+    "2": "DIRE",
+    "3": "FIRST_PICK",
+    "4": "SECOND_PICK"
+  },
   "DOTAMatchVote": {
     "0": "DOTAMatchVote_INVALID",
     "1": "DOTAMatchVote_POSITIVE",
@@ -54972,12 +57222,18 @@ module.exports={
     "9": "EVENT_ID_FALL_MAJOR_2015",
     "10": "EVENT_ID_ORACLE_PA",
     "11": "EVENT_ID_NEW_BLOOM_2015_PREBEAST",
-    "12": "EVENT_ID_FROSTIVUS"
+    "12": "EVENT_ID_FROSTIVUS",
+    "13": "EVENT_ID_WINTER_MAJOR_2015"
   },
   "LobbyDotaTVDelay": {
     "0": "LobbyDotaTV_10",
     "1": "LobbyDotaTV_120",
     "2": "LobbyDotaTV_300"
+  },
+  "LobbyDotaPauseSetting": {
+    "0": "LobbyDotaPauseSetting_Unlimited",
+    "1": "LobbyDotaPauseSetting_Limited",
+    "2": "LobbyDotaPauseSetting_Disabled"
   },
   "EMatchOutcome": {
     "0": "k_EMatchOutcome_Unknown",
@@ -54996,6 +57252,8 @@ module.exports={
     "103": "k_EDOTAGCSessionNeed_UserInUIWasConnected",
     "104": "k_EDOTAGCSessionNeed_UserInUINeverConnected",
     "105": "k_EDOTAGCSessionNeed_UserTutorials",
+    "106": "k_EDOTAGCSessionNeed_UserInUIWasConnectedIdle",
+    "107": "k_EDOTAGCSessionNeed_UserInUINeverConnectedIdle",
     "200": "k_EDOTAGCSessionNeed_GameServerOnline",
     "201": "k_EDOTAGCSessionNeed_GameServerLocal",
     "202": "k_EDOTAGCSessionNeed_GameServerIdle",
@@ -55061,7 +57319,11 @@ module.exports={
     "18": "DOTA_COMBATLOG_FIRST_BLOOD",
     "19": "DOTA_COMBATLOG_MODIFIER_REFRESH",
     "20": "DOTA_COMBATLOG_NEUTRAL_CAMP_STACK",
-    "21": "DOTA_COMBATLOG_PICKUP_RUNE"
+    "21": "DOTA_COMBATLOG_PICKUP_RUNE",
+    "22": "DOTA_COMBATLOG_REVEALED_INVISIBLE",
+    "23": "DOTA_COMBATLOG_HERO_SAVED",
+    "24": "DOTA_COMBATLOG_MANA_RESTORED",
+    "25": "DOTA_COMBATLOG_HERO_LEVELUP"
   },
   "DOTAChatChannelType_t": {
     "0": "DOTAChannelType_Regional",
@@ -55080,7 +57342,8 @@ module.exports={
     "13": "DOTAChannelType_GameSpectator",
     "14": "DOTAChannelType_GameCoaching",
     "15": "DOTAChannelType_Cafe",
-    "16": "DOTAChannelType_CustomGame"
+    "16": "DOTAChannelType_CustomGame",
+    "17": "DOTAChannelType_Private"
   },
   "ETournamentGameState": {
     "0": "k_ETournamentGameState_Unknown",
@@ -55230,6 +57493,11 @@ module.exports={
     "94": "PP13_SEL_SOLO_6",
     "95": "PP13_SEL_SOLO_7"
   },
+  "EMatchGroupServerStatus": {
+    "0": "k_EMatchGroupServerStatus_OK",
+    "1": "k_EMatchGroupServerStatus_LimitedAvailability",
+    "2": "k_EMatchGroupServerStatus_Offline"
+  },
   "DOTA_WatchReplayType": {
     "0": "DOTA_WATCH_REPLAY_NORMAL",
     "1": "DOTA_WATCH_REPLAY_HIGHLIGHTS"
@@ -55292,9 +57560,7 @@ module.exports={
     "1003": "k_EMsgGCCraftResponse",
     "1004": "k_EMsgGCDelete",
     "1005": "k_EMsgGCVerifyCacheSubscription",
-    "1006": "k_EMsgGCNameItem",
-    "1007": "k_EMsgGCUnlockCrate",
-    "1008": "k_EMsgGCUnlockCrateResponse",
+    "1006": "k_EMsgClientToGCNameItem",
     "1009": "k_EMsgGCPaintItem",
     "1010": "k_EMsgGCPaintItemResponse",
     "1011": "k_EMsgGCGoldenWrenchBroadcast",
@@ -55318,14 +57584,10 @@ module.exports={
     "1031": "k_EMsgGCRemoveItemPaint",
     "1037": "k_EMsgGCUnwrapGiftRequest",
     "1038": "k_EMsgGCUnwrapGiftResponse",
-    "1039": "k_EMsgGCSetItemStyle",
+    "1039": "k_EMsgGCSetItemStyle_DEPRECATED",
     "1040": "k_EMsgGCUsedClaimCodeItem",
     "1041": "k_EMsgGCSortItems",
     "1042": "k_EMsgGC_RevolvingLootList_DEPRECATED",
-    "1043": "k_EMsgGCLookupAccount",
-    "1044": "k_EMsgGCLookupAccountResponse",
-    "1045": "k_EMsgGCLookupAccountName",
-    "1046": "k_EMsgGCLookupAccountNameResponse",
     "1049": "k_EMsgGCUpdateItemSchema",
     "1051": "k_EMsgGCRemoveCustomTexture",
     "1052": "k_EMsgGCRemoveCustomTextureResponse",
@@ -55340,10 +57602,8 @@ module.exports={
     "1062": "k_EMsgGCItemAcknowledged",
     "1063": "k_EMsgGCPresets_SelectPresetForClass",
     "1064": "k_EMsgGCPresets_SetItemPosition",
-    "1065": "k_EMsgGC_ReportAbuse",
-    "1066": "k_EMsgGC_ReportAbuseResponse",
     "1067": "k_EMsgGCPresets_SelectPresetForClassReply",
-    "1068": "k_EMsgGCNameItemNotification",
+    "1068": "k_EMsgClientToGCNameItemResponse",
     "1069": "k_EMsgGCApplyConsumableEffects",
     "1070": "k_EMsgGCConsumableExhausted",
     "1071": "k_EMsgGCShowItemsPickedUp",
@@ -55368,6 +57628,7 @@ module.exports={
     "1093": "k_EMsgGCRequestCrateItemsResponse",
     "1094": "k_EMsgGCExtractGemsResponse",
     "1095": "k_EMsgGCResetStrangeGemCountResponse",
+    "1096": "k_EMsgGCSetItemPositions_RateLimited",
     "1103": "k_EMsgGCServerUseItemRequest",
     "1104": "k_EMsgGCAddGiftItem",
     "1105": "k_EMsgGCRemoveItemGiftMessage",
@@ -55377,6 +57638,7 @@ module.exports={
     "1109": "k_EMsgClientToGCRemoveItemGifterAttributes",
     "1110": "k_EMsgClientToGCRemoveItemName",
     "1111": "k_EMsgClientToGCRemoveItemDescription",
+    "1112": "k_EMsgClientToGCRemoveItemAttributeResponse",
     "1500": "k_EMsgGCTradingBase",
     "1501": "k_EMsgGCTrading_InitiateTradeRequest",
     "1502": "k_EMsgGCTrading_InitiateTradeResponse",
@@ -55451,7 +57713,7 @@ module.exports={
     "2564": "k_EMsgGCToGCItemConsumptionRollback",
     "2565": "k_EMsgClientToGCWrapAndDeliverGift",
     "2566": "k_EMsgClientToGCWrapAndDeliverGiftResponse",
-    "2567": "k_EMsgGCToClientBundleUnpacked",
+    "2567": "k_EMsgClientToGCUnpackBundleResponse",
     "2568": "k_EMsgGCToClientStoreTransactionCompleted",
     "2569": "k_EMsgClientToGCEquipItems",
     "2570": "k_EMsgClientToGCEquipItemsResponse",
@@ -55459,7 +57721,14 @@ module.exports={
     "2572": "k_EMsgClientToGCUnlockItemStyleResponse",
     "2573": "k_EMsgClientToGCSetItemInventoryCategory",
     "2574": "k_EMsgClientToGCUnlockCrate",
-    "2575": "k_EMsgClientToGCUnlockCrateResponse"
+    "2575": "k_EMsgClientToGCUnlockCrateResponse",
+    "2576": "k_EMsgClientToGCUnpackBundle",
+    "2577": "k_EMsgClientToGCSetItemStyle",
+    "2578": "k_EMsgClientToGCSetItemStyleResponse",
+    "2579": "k_EMsgGCGenericResult",
+    "2580": "k_EMsgSQLGCToGCGrantBackpackSlots",
+    "2581": "k_EMsgClientToGCLookupAccountName",
+    "2582": "k_EMsgClientToGCLookupAccountNameResponse"
   },
   "EGCMsgResponse": {
     "0": "k_EGCMsgResponseOK",
@@ -55657,7 +57926,8 @@ module.exports={
     "551": "DOTA_UM_CompendiumState",
     "552": "DOTA_UM_ProjectionAbility",
     "553": "DOTA_UM_ProjectionEvent",
-    "554": "DOTA_UM_CombatLogDataHLTV"
+    "554": "DOTA_UM_CombatLogDataHLTV",
+    "555": "DOTA_UM_XPAlert"
   },
   "DOTA_CHAT_MESSAGE": {
     "0": "CHAT_MESSAGE_HERO_KILL",
@@ -72204,7 +74474,8 @@ module.exports = function(p) {
             "CSVCMsg_UpdateStringTable": -10,
             "CNETMsg_SpawnGroup_Load": -10,
             "CSVCMsg_PacketEntities": 5,
-            "CMsgSource1LegacyGameEvent": 10
+            "CMsgSource1LegacyGameEvent": 10,
+            "CMsgDOTACombatLogEntryHLTV": 10
         };
         //the inner data of a CDemoPacket is raw bits (no longer byte aligned!)
         var packets = [];
@@ -72250,7 +74521,7 @@ module.exports = function(p) {
                     }
                 }
                 else {
-                    console.error("no proto definition for packet name %s", name);
+                    //console.error("no proto definition for packet name %s", name);
                 }
             }
             else {

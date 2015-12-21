@@ -55,7 +55,7 @@ p.on("CDOTAUserMsg_CombatLogDataHLTV", function(data) {
         }
     }
     //console.error(data);
-    if (data.type > 18) {
+    if (data.type > 19) {
         console.error(data);
     }
     console.log(JSON.stringify(data));
