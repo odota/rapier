@@ -7,16 +7,16 @@
     "example": "example"
   },
   "dependencies": {
-    "async": "^1.4.2",
-    "bytebuffer": "^4.0.0",
+    "async": "^1.5.0",
+    "bytebuffer": "^5.0.0",
     "heap": "^0.2.6",
-    "protobufjs": "4.0.0"
+    "protobufjs": "4.1.3"
   },
   "devDependencies": {
-    "browserify": "^11.0.1",
-    "json-loader": "^0.5.2",
-    "uglify-js": "^2.4.24",
-    "watchify": "^3.3.1"
+    "browserify": "^12.0.1",
+    "json-loader": "^0.5.4",
+    "uglify-js": "^2.6.1",
+    "watchify": "^3.6.1"
   },
   "scripts": {
     "test": "bash test_js_parser.sh",
