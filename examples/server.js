@@ -1,4 +1,4 @@
-var Parser = require('../Parser');
+var Parser = require('../parser');
 //parser accepts a stream or buffer, returns an eventemitter
 var p = new Parser(process.stdin);
 //var p = new Parser(require('fs').readFileSync('./testfiles/1698148651_source2.dem'));
