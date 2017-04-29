@@ -1,4 +1,6 @@
 # rapier
+
+[![Greenkeeper badge](https://badges.greenkeeper.io/odota/rapier.svg)](https://greenkeeper.io/)
 A JavaScript Dota 2 (Source 2) replay parsing library.
 
 It throws (exceptions) if incorrectly used. :)
